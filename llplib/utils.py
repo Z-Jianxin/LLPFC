@@ -1,17 +1,5 @@
 import torch
 from PIL import Image
-import numpy as np
-
-
-def truncate_data(data, bag2indices):
-	idx_list = []
-	for bag_id in bag2indices.keys():
-		idx_list.extend(bag2indices[bag_id])
-	idx_list.sort()
-	data_truncated = data[idx_list]
-	idx2new = {idx_list[i]: i for i in range(len(idx_list))}
-	bag2new = {bag_id: list(map(idx2new.get, bag2indices[bag_id])) for bag_id in bag2indices.keys()}
-	return data_truncated, bag2new
 
 
 class FORWARD_CORRECT_MNIST(torch.utils.data.Dataset):

@@ -1,5 +1,5 @@
-import torch
 import torch.nn as nn
+
 
 class LPPGAN_DIS(nn.Module):
 	# use the same discriminator as LLP-GAN paper

@@ -1,10 +1,14 @@
 import argparse
-from llplib.make_bags import make_bags_dirichlet, InsufficientDataPoints, make_bags_uniform
+from llplib.make_bags import make_bags_dirichlet, InsufficientDataPoints, make_bags_uniform, truncate_data
 import torchvision
 import pickle
 import os
 import random  # set random seed
 import numpy as np  # set random seed
+
+
+class InvalidArguments(Exception):
+    pass
 
 
 def get_args():
@@ -38,10 +42,14 @@ def get_args():
 def main(args):
     if args.dataset == "cifar10":
         train_dataset = torchvision.datasets.CIFAR10(root=args.data_folder_labeled, train=True, download=True)
+    else:
+        raise InvalidArguments("Unknown dataset name: ", args.dataset)
 
     if args.method == "dirichlet":
         if args.alpha == "equal":
             alpha = tuple([1 for _ in range(args.num_classes)])
+        else:
+            raise InvalidArguments("Unknown choice of alpha: ", args.alpha)
         flag = 1
         fail_counter = 0
         while flag:
@@ -54,15 +62,17 @@ def main(args):
                 flag = 1
                 fail_counter += 1
                 if fail_counter >= 10:
-                    print("THE DATA GENERATION PROCESS FAILS FOR 10 TIMES CONSECUTIVELY. PLEASE CHECK ARGUMENTS "
-                          "OF --alpha, --bag_size, --num_bags")
-                    raise InsufficientDataPoints
+                    raise InsufficientDataPoints("THE DATA GENERATION PROCESS FAILS FOR 10 TIMES CONSECUTIVELY. "
+                                                 "PLEASE CHECK ARGUMENTS OF --alpha, --bag_size, --num_bags")
                 continue
     elif args.method == "uniform":
         bag2indices, bag2size, bag2prop = make_bags_uniform(train_dataset.targets, args.num_classes, args.bag_size,
                                                             args.num_bags)
+    else:
+        raise InvalidArguments("Unknown method to generate bags: ", args.method)
 
-    to_save = [bag2indices, bag2size, bag2prop]
+    training_data, bag2indices = truncate_data(train_dataset.data, bag2indices)
+    to_save = [training_data, bag2indices, bag2size, bag2prop]
 
     with open(os.path.join(args.data_folder_llp, args.data_save_name), 'wb') as f:
         pickle.dump(to_save, f)

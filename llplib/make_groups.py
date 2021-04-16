@@ -1,10 +1,5 @@
 import numpy as np
-from numpy.random import shuffle
-
 import random
-import itertools
-import copy
-from math import ceil
 
 
 def make_groups_forward(num_class, bag2indices, bag2size, bag2prop):

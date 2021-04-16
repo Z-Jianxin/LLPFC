@@ -88,3 +88,14 @@ def make_bags_uniform(train_y, num_class, bag_size, num_bags):
 		for j in range(num_class):
 			bag2prop[i][j] = np.sum(train_y[bag2indices[i]] == j) / bag2size[i]
 	return bag2indices, bag2size, bag2prop
+
+
+def truncate_data(data, bag2indices):
+	idx_list = []
+	for bag_id in bag2indices.keys():
+		idx_list.extend(bag2indices[bag_id])
+	idx_list.sort()
+	data_truncated = data[idx_list]
+	idx2new = {idx_list[i]: i for i in range(len(idx_list))}
+	bag2new = {bag_id: list(map(idx2new.get, bag2indices[bag_id])) for bag_id in bag2indices.keys()}
+	return data_truncated, bag2new
