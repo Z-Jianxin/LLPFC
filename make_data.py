@@ -41,7 +41,7 @@ def main(args):
 
     if args.method == "dirichlet":
         if args.alpha == "equal":
-            alpha = tuple([1 for i in range(args.num_classes)])
+            alpha = tuple([1 for _ in range(args.num_classes)])
         flag = 1
         fail_counter = 0
         while flag:

@@ -7,6 +7,7 @@ import random
 class InsufficientDataPoints(Exception):
 	pass
 
+
 class InvalidAlpha(Exception):
 	pass
 

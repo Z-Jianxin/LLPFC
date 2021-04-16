@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 
+
 def test_model(model, test_loader, criterion, device):
 	# test a model with fully label dataset
 	model.eval()
