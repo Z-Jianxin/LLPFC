@@ -19,8 +19,10 @@ class InvalidArguments(Exception):
     pass
 
 
-def loss_f(x, y, device, epsilon=1e-7):  # todo: Allow more choices of loss functions
-    return nn.functional.nll_loss(torch.log(x + epsilon), y, reduction='mean')
+def loss_f(x, y, weights, device, epsilon=1e-7):  # todo: Allow more choices of loss functions
+    unweighted = nn.functional.nll_loss(torch.log(x + epsilon), y, reduction='none')
+    weights /= weights.sum()
+    return (unweighted * weights).sum()
 
 
 def loss_f_test(x, y, device, epsilon=1e-7):
@@ -71,8 +73,17 @@ def llpfc(args):
 
     total_epochs = args.total_epochs
     # optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
-    optimizer = torch.optim.Adamax(model.parameters(), lr=args.lr, betas=(0.9, 0.999), eps=1e-08,
-                                   weight_decay=args.weight_decay)
+    if args.optimizer == "Adamax":
+        optimizer = torch.optim.Adamax(model.parameters(), lr=args.lr, betas=(0.9, 0.999), eps=1e-08,
+                                     weight_decay=args.weight_decay)
+    elif args.optimizer == "Adagrad":
+        optimizer = torch.optim.Adagrad(model.parameters())
+    elif args.optimizer == "LBFGS":
+        optimizer = torch.optim.LBFGS(model.parameters(), lr=args.lr)  # ToDo: implement the closure function and test
+    elif args.optimizer == "nesterov":
+        optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum, nesterov=True)
+    else:
+        raise InvalidArguments("Unknown selection of optimizer: ", args.optimizer)
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=total_epochs//2, gamma=0.1)
 
     test_loader = torch.utils.data.DataLoader(dataset=test_dataset, batch_size=args.test_batch_size, shuffle=False)
@@ -82,14 +93,14 @@ def llpfc(args):
             flag = True
             while flag:
                 try:
-                    instance2group, group2gamma, group2transition, noisy_y = make_groups_forward(num_classes,
-                                                                                       bag2indices, bag2size, bag2prop)
+                    instance2group, group2transition, group2weights, noisy_y = \
+                        make_groups_forward(num_classes, bag2indices, bag2size, bag2prop)
                     flag = False
                 except np.linalg.LinAlgError:
                     flag = True
                     continue
-            fc_train_dataset = FORWARD_CORRECT_CIFAR10(training_data, noisy_y, group2transition, instance2group,
-                                                        transform_train)
+            fc_train_dataset = FORWARD_CORRECT_CIFAR10(training_data, noisy_y, group2transition, group2weights,
+                                                       instance2group, transform_train)
             llp_train_loader = torch.utils.data.DataLoader(dataset=fc_train_dataset, batch_size=args.train_batch_size,
                                                            shuffle=True)
             num_regroup += 1

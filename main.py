@@ -20,7 +20,11 @@ def get_args():
                         default="wide_resnet_28_2", help="the neural network model")  # ToDo: include more networks
     parser.add_argument("--drop_rate", nargs="?", type=float, default=0.3,
                         help="the drop rate in dropout layers, for wide resnet")  # add more to this
+    parser.add_argument("-o", "--optimizer", nargs="?", default="Adamax",
+                        choices=["Adamax", "LBFGS", "Adagrad", "nesterov"],
+                        help="optimizer of the neural network")
     parser.add_argument("-l", "--lr", nargs="?", type=float, default=1e-3, help="learning rate")
+    parser.add_argument("-m", "--momentum", nargs="?", type=float, default=0.9, help="momentum")
     parser.add_argument("-w", "--weight_decay", nargs="?", type=float, default=0, help="weight decay")
     parser.add_argument("-e", "--total_epochs", nargs="?", type=int, default=400,
                         help="total number of epochs to train")

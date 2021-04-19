@@ -29,16 +29,17 @@ def train_model_forward_one_epoch(model, loss_f, optimizer, train_loader, epoch,
 	model.train()
 	total_step = len(train_loader)
 	print(f"Epoch-{epoch} lr: {optimizer.param_groups[0]['lr']}")
-	for i, (images, noisy_y, gamma_m) in enumerate(train_loader):
+	for i, (images, noisy_y, trans_m, weights) in enumerate(train_loader):
 		# Move tensors to the configured device
 		images = images.to(device)
 		noisy_y = noisy_y.to(device)
-		gamma_m = gamma_m.to(device)
+		trans_m = trans_m.to(device)
+		weights = weights.to(device)
 		# Forward pass
 		outputs = model(images)
 		prob = nn.functional.softmax(outputs, dim=1)
-		prob_corrected = torch.bmm(gamma_m.float(), prob.reshape(prob.shape[0], -1, 1)).reshape(prob.shape[0], -1)
-		loss = loss_f(prob_corrected, noisy_y, device)
+		prob_corrected = torch.bmm(trans_m.float(), prob.reshape(prob.shape[0], -1, 1)).reshape(prob.shape[0], -1)
+		loss = loss_f(prob_corrected, noisy_y, weights, device)
 		# Backward pass
 		optimizer.zero_grad()
 		loss.backward()
