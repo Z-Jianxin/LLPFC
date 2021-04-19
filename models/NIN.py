@@ -8,7 +8,7 @@ class NIN(nn.Module):
 		if isinstance(image_size, int):
 			pool_size = math.ceil(math.ceil(image_size/2.0-0.5)/2.0-0.5)
 		else:
-			pool_size = (math.ceil(math.ceil(image_size[0]/2.0-0.5)/2.0-0.5), math.ceil(math.ceil(image_size[1]/2.0-0.5)/2.0)-0.5)
+			pool_size = (math.ceil(math.ceil(image_size[0]/2.0-0.5)/2.0-0.5), math.ceil(math.ceil(image_size[1]/2.0-0.5)/2.0-0.5))
 		self.features = nn.Sequential(
 			nn.Conv2d(in_channel, 192, 5, padding=2),
 			nn.ReLU(inplace=True),
