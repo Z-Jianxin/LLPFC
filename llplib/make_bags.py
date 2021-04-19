@@ -1,5 +1,5 @@
 import numpy as np
-from numpy.random import dirichlet
+from numpy.random import dirichlet, multinomial
 from sklearn.utils import shuffle
 import random
 
@@ -12,38 +12,31 @@ class InvalidAlpha(Exception):
 	pass
 
 
-def make_bags_dirichlet(train_y, num_class, bag_size, num_bags, alpha):
-	if len(alpha) != num_class:
-		raise InvalidAlpha("the dirichlet distribution's parameter should have length equal to num_class")
+def make_bags_dirichlet(train_y, num_classes, bag_size, num_bags, alpha):
+	if len(alpha) != num_classes:
+		raise InvalidAlpha("the dirichlet distribution's parameter should have length equal to num_classes")
 
-	lp_arr = (dirichlet(alpha, num_bags) * bag_size).astype(np.int)
-	lp2counts = {}
-	for row in range(lp_arr.shape[0]):
-		lp = tuple(lp_arr[row])
-		if lp not in lp2counts.keys():
-			lp2counts[lp] = 0
-		lp2counts[lp] += 1
-	return _make_bags_counts(train_y, num_class, lp2counts)
+	multinomial_param = dirichlet(alpha, num_bags)
+	bag_arr = np.zeros(multinomial_param.shape)
+	for row_num in range(bag_arr.shape[0]):
+		bag_arr[row_num, :] = multinomial(bag_size, multinomial_param[row_num, :])
+	bag_arr = bag_arr.astype(np.int32)
+	return _make_bags_counts(train_y, num_classes, bag_arr)
 
 
-def make_bags_counts(train_y, num_class, lp2counts):
-	return _make_bags_counts(train_y, num_class, lp2counts)
+def make_bags_counts(train_y, num_classes, bag_arr):
+	return _make_bags_counts(train_y, num_classes, bag_arr)
 
 
-def _make_bags_counts(train_y, num_class, lp2counts):
+def _make_bags_counts(train_y, num_classes, lp_arr):
 	train_y = np.array(train_y, dtype=np.int)  # y has to be integers starting from 0
 
 	# first need to verify the number of data points
 	total_label_counts = {}
-	for label in range(num_class):
+	for label in range(num_classes):
 		total_label_counts[int(label)] = (train_y == label).astype(int).sum()
-	expected_label_counts = {}
-	for counts, num in lp2counts.items():
-		for i in range(len(counts)):
-			if i not in expected_label_counts.keys():
-				expected_label_counts[i] = 0
-			expected_label_counts[i] += counts[i] * num
-	for label in range(num_class):
+	expected_label_counts = {i: np.sum(lp_arr[:, i]) for i in range(num_classes)}
+	for label in range(num_classes):
 		if total_label_counts[label] < expected_label_counts[label]:
 			raise InsufficientDataPoints("Requested data points > total number of data points")
 	# done checking
@@ -56,24 +49,20 @@ def _make_bags_counts(train_y, num_class, lp2counts):
 		label2indices[label].add(i)
 
 	bag2indices, bag2size, bag2prop = {}, {}, {}
-	bag_idx = 0
-	for counts, num in lp2counts.items():
-		for i in range(num):
-			bag2indices[bag_idx] = []
-			for label in range(num_class):
-				class_indices = random.sample(label2indices[label], counts[label])
-				label2indices[label] -= set(class_indices)
-				for idx in class_indices:
-					bag2indices[bag_idx].append(idx)
-			bag2size[bag_idx] = len(bag2indices[bag_idx])
-			bag2prop[bag_idx] = np.zeros((num_class,))
-			for j in range(num_class):
-				bag2prop[bag_idx][j] = np.sum(train_y[bag2indices[bag_idx]] == j) / bag2size[bag_idx]
-			bag_idx += 1
+	for bag_idx in range(lp_arr.shape[0]):
+		bag2indices[bag_idx] = []
+		for label in range(num_classes):
+			class_indices = random.sample(label2indices[label], lp_arr[bag_idx, label])
+			label2indices[label] -= set(class_indices)
+			bag2indices[bag_idx].extend(class_indices)
+		bag2size[bag_idx] = len(bag2indices[bag_idx])
+		bag2prop[bag_idx] = np.zeros((num_classes,))
+		for j in range(num_classes):
+			bag2prop[bag_idx][j] = np.sum(train_y[bag2indices[bag_idx]] == j) / bag2size[bag_idx]
 	return bag2indices, bag2size, bag2prop
 
 
-def make_bags_uniform(train_y, num_class, bag_size, num_bags):
+def make_bags_uniform(train_y, num_classes, bag_size, num_bags):
 	train_y = np.array(train_y, dtype=np.int)  # y has to be integers starting from 0
 	train_size = num_bags * bag_size
 	train_y = train_y[:train_size]
@@ -84,8 +73,8 @@ def make_bags_uniform(train_y, num_class, bag_size, num_bags):
 	for i in range(num_bags):
 		bag2indices[i] = train_indices[i * bag_size:(i + 1) * bag_size]
 		bag2size[i] = bag_size
-		bag2prop[i] = np.zeros((num_class,))
-		for j in range(num_class):
+		bag2prop[i] = np.zeros((num_classes,))
+		for j in range(num_classes):
 			bag2prop[i][j] = np.sum(train_y[bag2indices[i]] == j) / bag2size[i]
 	return bag2indices, bag2size, bag2prop
 

@@ -54,7 +54,8 @@ def main(args):
         fail_counter = 0
         while flag:
             try:
-                bag2indices, bag2size, bag2prop = make_bags_dirichlet(train_dataset.targets, num_class=args.num_classes,
+                bag2indices, bag2size, bag2prop = make_bags_dirichlet(train_dataset.targets,
+                                                                      num_classes=args.num_classes,
                                                                       bag_size=args.bag_size, num_bags=args.num_bags,
                                                                       alpha=alpha)
                 flag = 0
