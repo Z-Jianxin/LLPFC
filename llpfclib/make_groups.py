@@ -51,7 +51,7 @@ def make_groups_forward(num_classes, bag2indices, bag2size, bag2prop, weights="c
         for group_id, trans_m in group2transition.items():
             group2weights[group_id] /= weights_sum
     elif weights == "uniform":
-        group2weights = {group_id: 1 for group_id, trans_m in group2transition.items()}
+        group2weights = {group_id: 1.0 for group_id, trans_m in group2transition.items()}
     else:
         raise InvalidChoiceOfWeights("unknown way to determine weights %s, use either ch_vol or uniform" % weights)
 

@@ -15,7 +15,6 @@ class FORWARD_CORRECT_MNIST(torch.utils.data.Dataset):
 
 	def __getitem__(self, index):
 		img, y_, gamma_m = self.data[index], self.noisy_y[index], self.group2gamma[self.instance2group[index]]
-		#img = Image.fromarray(img.numpy(), mode='L')
 		img = Image.fromarray(img, mode='L')
 		if self.transform is not None:
 			img = self.transform(img)
