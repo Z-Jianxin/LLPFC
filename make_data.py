@@ -1,5 +1,5 @@
 import argparse
-from llplib.make_bags import make_bags_dirichlet, InsufficientDataPoints, make_bags_uniform, truncate_data
+from llpfclib.make_bags import make_bags_dirichlet, InsufficientDataPoints, make_bags_uniform, truncate_data
 import torchvision
 import pickle
 import os
