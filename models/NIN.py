@@ -1,6 +1,7 @@
 import torch.nn as nn
 import math
 
+
 class NIN(nn.Module):
 	def __init__(self, num_classes, image_size, in_channel=3):
 		super(NIN, self).__init__()

@@ -11,7 +11,9 @@ import torchvision.transforms as transforms
 from models.NIN import NIN
 from models.WideRes import wide_resnet_d_w
 from llpfclib.utils import FORWARD_CORRECT_MNIST, FORWARD_CORRECT_CIFAR10
+from llpvatlib.utils import LLPVAT_CIFAR10
 from llpfc import llpfc
+from llpvat import kl
 
 
 class InvalidArguments(Exception):
@@ -30,7 +32,7 @@ def get_args():
                         help="path to the folder of labeled test data, if not exists, the dataset will be downloaded")
 
     # optional:
-    parser.add_argument("-a", "--algorithm", nargs='?', choices=["llpfc"], default="llpfc",
+    parser.add_argument("-a", "--algorithm", nargs='?', choices=["llpfc", "kl"], default="llpfc",
                         help="choose a training algorithm")  # ToDo: add more after implementing competitors
     parser.add_argument("-n", "--network", nargs='?', choices=["wide_resnet_d_w", "nin"],
                         default="wide_resnet_d_w", help="the neural network model")  # ToDo: include more networks
@@ -153,6 +155,8 @@ def set_optimizer(args, model, total_epochs):
 def set_dataset_class(args):
     if args.algorithm == "llpfc" and args.dataset == "cifar10":
         return FORWARD_CORRECT_CIFAR10
+    elif args.algorithm == "kl" and args.dataset == "cifar10":
+        return LLPVAT_CIFAR10
     raise InvalidArguments("Unknown llp algorithm: ", args.algorithm)
 
 
@@ -168,6 +172,16 @@ def main(args):
         dataset_class = set_dataset_class(args)
         llpfc(num_classes, llp_data, transform_train, total_epochs, scheduler, model, optimizer, test_loader,
               dataset_class, args.weights, args.num_epoch_regroup, args.train_batch_size, device)
+    elif args.algorithm == "kl":
+        dataset_class = set_dataset_class(args)
+        training_data, bag2indices, bag2size, bag2prop = llp_data
+        llpvat_train_dataset = dataset_class(training_data, bag2indices, bag2prop, transform_train)
+        train_loader = torch.utils.data.DataLoader(dataset=llpvat_train_dataset, batch_size=args.train_batch_size,
+                                                   shuffle=True)
+        alpha = 1.0
+        consistency = None
+        kl(model, optimizer, train_loader, alpha, consistency, scheduler, total_epochs, test_loader, device)
+
 
     if args.save_path is not None:
         torch.save(model.state_dict(), args.save_path)

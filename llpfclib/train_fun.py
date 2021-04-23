@@ -31,7 +31,7 @@ def validate_model_forward(model, loss_f, val_loader, device):
 	return total_loss
 
 
-def train_model_forward_one_epoch(model, loss_f, optimizer, train_loader, device, epoch, scheduler=None):
+def train_model_forward_one_epoch(model, loss_f, optimizer, train_loader, device, epoch, scheduler):
 	# train the model one epoch with forward correction
 	# label input of loss_f must be an integer
 	model.train()

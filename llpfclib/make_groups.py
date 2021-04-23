@@ -11,14 +11,17 @@ class InvalidChoiceOfWeights(Exception):
 def make_groups_forward(num_classes, bag2indices, bag2size, bag2prop, weights="ch_vol"):
     bag_ids = list(bag2indices.keys())
     num_groups = len(bag_ids) // num_classes
-    assert num_groups * num_classes == len(bag_ids)
+    assert num_groups > 0
     random.shuffle(bag_ids)
     group2bag = {i: bag_ids[i * num_classes:(i + 1) * num_classes] for i in range(num_groups)}
+    group2bag[-1] = bag_ids[num_groups * num_classes:]
     groups = list(group2bag.keys())
 
     group2transition = dict()
     group2gamma = dict()
     for group_id in groups:
+        if group_id == -1:
+            continue
         clean_prior = np.zeros((num_classes, ))
         noisy_prior = np.zeros((num_classes,))
         gamma_m = np.zeros((num_classes, num_classes))
@@ -40,7 +43,7 @@ def make_groups_forward(num_classes, bag2indices, bag2size, bag2prop, weights="c
 
     instance2group = {instance_id: group_id for group_id in groups for bag_id in group2bag[group_id] for instance_id in
                       bag2indices[bag_id]}
-
+    # calculate the weights of groups
     group2weights = {}
     if weights == "ch_vol":
         weights_sum = 0
@@ -55,8 +58,11 @@ def make_groups_forward(num_classes, bag2indices, bag2size, bag2prop, weights="c
     else:
         raise InvalidChoiceOfWeights("unknown way to determine weights %s, use either ch_vol or uniform" % weights)
 
-    noisy_y = np.zeros((sum([len(instances) for instances in bag2indices.values()]), ))
+    # set the noisy labels
+    noisy_y = -np.ones((sum([len(instances) for instances in bag2indices.values()]), ))
     for group_id in groups:
+        if group_id == -1:
+            continue
         for noisy_class, bag_id in enumerate(group2bag[group_id]):
             for instance_id in bag2indices[bag_id]:
                 noisy_y[instance_id] = noisy_class

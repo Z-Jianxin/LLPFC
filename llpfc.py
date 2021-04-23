@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from torch.distributions.constraints import simplex
 
 import numpy as np
 
@@ -7,14 +8,17 @@ from llpfclib.make_groups import make_groups_forward
 from llpfclib.train_fun import train_model_forward_one_epoch, test_model
 
 
-def loss_f(x, y, weights, device, epsilon=1e-7):  # todo: Allow more choices of loss functions
-    unweighted = nn.functional.nll_loss(torch.log(x + epsilon), y, reduction='none')
+def loss_f(x, y, weights, device, epsilon=1e-8):  # todo: Allow more choices of loss functions
+    assert torch.all(simplex.check(x))
+    x = torch.clamp(x, epsilon, 1 - epsilon)
+    unweighted = nn.functional.nll_loss(torch.log(x), y, reduction='none')
     weights /= weights.sum()
     return (unweighted * weights).sum()
 
 
-def loss_f_test(x, y, device, epsilon=1e-7):
-    return nn.functional.nll_loss(torch.log(x + epsilon), y, reduction='sum')
+def loss_f_test(x, y, device, epsilon=1e-8):
+    x = torch.clamp(x, epsilon, 1 - epsilon)
+    return nn.functional.nll_loss(torch.log(x), y, reduction='sum')
 
 
 def llpfc(num_classes, llp_data, transform_train, total_epochs, scheduler, model, optimizer, test_loader, dataset_class,
