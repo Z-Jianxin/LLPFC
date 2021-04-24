@@ -66,8 +66,10 @@ def get_args():
                         default="scheduler", help="set the scheduler of training lr")
     parser.add_argument("-T0", "--T_0", nargs='?', type=int, default=10, help="parameter of the CAWR scheduler")
     parser.add_argument("-Tm", "--T_mult", nargs='?', type=int, default=1, help="parameter of the CAWR scheduler")
+    parser.add_argument("-gb", "--use_group_batch", nargs='?', type=int, default=1, choices=[0, 1],
+                        help="Choose if use group batch")
     parser.add_argument("--seed", nargs='?', type=int, help="seed for all RNG")
-    parser.add_argument("-fr", "--full_reproducibility", nargs='?', type=bool, default=False,
+    parser.add_argument("-fr", "--full_reproducibility", nargs='?', type=int, default=0, choices=[0, 1],
                         help="choose to disable all nondeterministic algorithms, may at the cost of performance")
     return parser.parse_args()
 
@@ -170,8 +172,9 @@ def main(args):
     optimizer, scheduler = set_optimizer(args, model, total_epochs)
     if args.algorithm == "llpfc":
         dataset_class = set_dataset_class(args)
+        use_group_batch = args.use_group_batch
         llpfc(num_classes, llp_data, transform_train, total_epochs, scheduler, model, optimizer, test_loader,
-              dataset_class, args.weights, args.num_epoch_regroup, args.train_batch_size, device)
+              dataset_class, args.weights, args.num_epoch_regroup, args.train_batch_size, use_group_batch, device)
     elif args.algorithm == "kl":
         dataset_class = set_dataset_class(args)
         training_data, bag2indices, bag2size, bag2prop = llp_data
@@ -181,8 +184,6 @@ def main(args):
         alpha = 1.0
         consistency = None
         kl(model, optimizer, train_loader, alpha, consistency, scheduler, total_epochs, test_loader, device)
-
-
     if args.save_path is not None:
         torch.save(model.state_dict(), args.save_path)
 
