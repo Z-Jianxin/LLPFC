@@ -7,6 +7,7 @@ import torch
 import torch.optim as optim
 import torchvision
 import torchvision.transforms as transforms
+from torch.utils.data.sampler import SubsetRandomSampler
 
 from models.NIN import NIN
 from models.WideRes import wide_resnet_d_w
@@ -41,8 +42,10 @@ def get_args():
     parser.add_argument("-dr", "--drop_rate", nargs="?", type=float, default=0.3,
                         help="the drop rate in dropout layers, for wide resnet")  # add more to this
     parser.add_argument("-o", "--optimizer", nargs="?", default="Adamax",
-                        choices=["Adamax", "LBFGS", "Adagrad", "nesterov"],
+                        choices=["Adamax", "LBFGS", "Adagrad", "nesterov", "AdamW", "SGD"],
                         help="optimizer of the neural network")
+    parser.add_argument("-ams", "--amsgrad", nargs="?", type=int, default=0, choices=[0, 1],
+                        help="whether to use the AMSGrad variant of this algorithm")
     parser.add_argument("-l", "--lr", nargs="?", type=float, default=1e-3, help="learning rate")
     parser.add_argument("-m", "--momentum", nargs="?", type=float, default=0.9, help="momentum")
     parser.add_argument("-wd", "--weight_decay", nargs="?", type=float, default=0, help="weight decay")
@@ -51,7 +54,7 @@ def get_args():
     parser.add_argument("-r", "--num_epoch_regroup", nargs="?", type=int, default=20,
                         help="groups will be regenerated every this number of epochs, " 
                              "only effective if the algorithm is llpfc")
-    parser.add_argument("-v", "--validate", nargs='?', type=bool, default=False,
+    parser.add_argument("-v", "--validate", nargs='?', type=int, default=0, choices=[0,1],
                         help="if True, then validate on 10%% of the training data set; " 
                              "if False, output testing loss and accuracy will training")
     parser.add_argument("-b", "--train_batch_size", nargs='?', type=int, default=128, help="training batch size")
@@ -66,7 +69,7 @@ def get_args():
                         default="scheduler", help="set the scheduler of training lr")
     parser.add_argument("-T0", "--T_0", nargs='?', type=int, default=10, help="parameter of the CAWR scheduler")
     parser.add_argument("-Tm", "--T_mult", nargs='?', type=int, default=1, help="parameter of the CAWR scheduler")
-    parser.add_argument("-gb", "--use_group_batch", nargs='?', type=int, default=1, choices=[0, 1],
+    parser.add_argument("-gb", "--use_group_batch", nargs='?', type=int, default=0, choices=[0, 1],
                         help="Choose if use group batch")
     parser.add_argument("--seed", nargs='?', type=int, help="seed for all RNG")
     parser.add_argument("-fr", "--full_reproducibility", nargs='?', type=int, default=0, choices=[0, 1],
@@ -140,6 +143,11 @@ def set_optimizer(args, model, total_epochs):
         optimizer = optim.LBFGS(model.parameters(), lr=args.lr)  # ToDo: implement the closure function and test
     elif args.optimizer == "nesterov":
         optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum, nesterov=True)
+    elif args.optimizer == "SGD":
+        optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum, nesterov=False)
+    elif args.optimizer == "AdamW":
+        optimizer = optim.AdamW(model.parameters(), lr=args.lr, betas=(0.9, 0.999), eps=1e-08,
+                                weight_decay=args.weight_decay, amsgrad=bool(args.amsgrad))
     else:
         raise InvalidArguments("Unknown selection of optimizer: ", args.optimizer)
 
@@ -172,9 +180,7 @@ def main(args):
     optimizer, scheduler = set_optimizer(args, model, total_epochs)
     if args.algorithm == "llpfc":
         dataset_class = set_dataset_class(args)
-        use_group_batch = args.use_group_batch
-        llpfc(num_classes, llp_data, transform_train, total_epochs, scheduler, model, optimizer, test_loader,
-              dataset_class, args.weights, args.num_epoch_regroup, args.train_batch_size, use_group_batch, device)
+        llpfc(llp_data, transform_train, scheduler, model, optimizer, test_loader, dataset_class, device, args)
     elif args.algorithm == "kl":
         dataset_class = set_dataset_class(args)
         training_data, bag2indices, bag2size, bag2prop = llp_data

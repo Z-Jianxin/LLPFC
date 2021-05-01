@@ -2,13 +2,14 @@ import numpy as np
 import random
 from scipy.spatial import ConvexHull
 from scipy.special import factorial
+from numpy.linalg import matrix_rank
 
 
 class InvalidChoiceOfWeights(Exception):
     pass
 
 
-def make_groups_forward(num_classes, bag2indices, bag2size, bag2prop, weights="ch_vol"):
+def make_groups_forward(num_classes, bag2indices, bag2size, bag2prop, weights):
     bag_ids = list(bag2indices.keys())
     num_groups = len(bag_ids) // num_classes
     assert num_groups > 0
@@ -39,6 +40,11 @@ def make_groups_forward(num_classes, bag2indices, bag2size, bag2prop, weights="c
                     group2transition[group_id][i, j] = gamma_m[i, j] * noisy_prior[i] / clean_prior[j]
                 else:
                     group2transition[group_id][i, j] = 0
+        if matrix_rank(group2transition[group_id]) != num_classes:  # todo: change the way sample bags and fix singular transition matrices
+            print("singular transition")
+            np.set_printoptions(precision=3)
+            np.set_printoptions(suppress=True)
+            print(group2transition[group_id])
         group2gamma[group_id] = gamma_m
 
     instance2group = {instance_id: group_id for group_id in groups for bag_id in group2bag[group_id] for instance_id in
