@@ -69,8 +69,6 @@ def get_args():
                         default="scheduler", help="set the scheduler of training lr")
     parser.add_argument("-T0", "--T_0", nargs='?', type=int, default=10, help="parameter of the CAWR scheduler")
     parser.add_argument("-Tm", "--T_mult", nargs='?', type=int, default=1, help="parameter of the CAWR scheduler")
-    parser.add_argument("-gb", "--use_group_batch", nargs='?', type=int, default=0, choices=[0, 1],
-                        help="Choose if use group batch")
     parser.add_argument("--seed", nargs='?', type=int, help="seed for all RNG")
     parser.add_argument("-fr", "--full_reproducibility", nargs='?', type=int, default=0, choices=[0, 1],
                         help="choose to disable all nondeterministic algorithms, may at the cost of performance")

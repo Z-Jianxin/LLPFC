@@ -6,7 +6,6 @@ import numpy as np
 
 from llpfclib.make_groups import make_groups_forward
 from llpfclib.train_fun import train_model_forward_one_epoch, test_model
-from llpfclib.utils import GroupSampler
 
 
 def loss_f(x, y, weights, device, epsilon=1e-8):  # todo: Allow more choices of loss functions
@@ -38,12 +37,8 @@ def llpfc(llp_data, transform_train, scheduler, model, optimizer, test_loader, d
                     continue
             fc_train_dataset = dataset_class(training_data, noisy_y, group2transition, group2weights, instance2group,
                                              transform_train)
-            if bool(args.use_group_batch):
-                batch_sampler = GroupSampler(fc_train_dataset.instance2group)
-                llp_train_loader = torch.utils.data.DataLoader(dataset=fc_train_dataset, batch_sampler=batch_sampler)
-            else:
-                llp_train_loader = torch.utils.data.DataLoader(dataset=fc_train_dataset,
-                                                               batch_size=args.train_batch_size, shuffle=True)
+            llp_train_loader = torch.utils.data.DataLoader(dataset=fc_train_dataset,
+                                                           batch_size=args.train_batch_size, shuffle=True)
             num_regroup += 1
         print(f"Regroup-{num_regroup} Epoch-{epoch}")
         print(f"    lr: {optimizer.param_groups[0]['lr']}")
