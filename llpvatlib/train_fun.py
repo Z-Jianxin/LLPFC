@@ -30,7 +30,7 @@ def VATLoss():
     return 0
 
 
-def llpvat_train_by_bag(model, optimizer, train_loader, epoch, alpha, consistency, device, scheduler):
+def llpvat_train_by_bag(model, optimizer, train_loader, epoch, alpha, consistency, device, scheduler, logger):
     model.train()
     total_step = len(train_loader)
     for i, (images, props) in enumerate(train_loader):
@@ -40,7 +40,7 @@ def llpvat_train_by_bag(model, optimizer, train_loader, epoch, alpha, consistenc
         loss.backward()
         optimizer.step()
         if (i + 1) % 100 == 0:
-            print('Step [{}/{}], Loss: {:.4f}'.format(i + 1, total_step, loss.item()))
+            logger.info('Step [{}/{}], Loss: {:.4f}'.format(i + 1, total_step, loss.item()))
         if type(scheduler) == torch.optim.lr_scheduler.CosineAnnealingWarmRestarts:
             scheduler.step(epoch + i / total_step)
     if type(scheduler) == torch.optim.lr_scheduler.StepLR:

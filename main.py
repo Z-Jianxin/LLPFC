@@ -16,6 +16,8 @@ from llpvatlib.utils import LLPVAT_CIFAR10
 from llpfc import llpfc
 from llpvat import kl
 
+import logging
+
 
 class InvalidArguments(Exception):
     pass
@@ -31,6 +33,7 @@ def get_args():
     parser.add_argument("-c", "--num_classes", nargs='?', type=int, required=True, help="number of classes")
     parser.add_argument("-f", "--data_folder_labeled", nargs='?', required=True,
                         help="path to the folder of labeled test data, if not exists, the dataset will be downloaded")
+    parser.add_argument("-log", "--logging_filename", nargs='?', required=True, help="path to save the log file")
 
     # optional:
     parser.add_argument("-a", "--algorithm", nargs='?', choices=["llpfc", "kl"], default="llpfc",
@@ -170,15 +173,19 @@ def set_dataset_class(args):
 
 def main(args):
     set_reproducibility(args)
+    logging.basicConfig(level=logging.INFO, filename=args.logging_filename, filemode="a+",
+                        format="%(asctime)-15s %(levelname)-8s %(message)s")
+    logger = logging.getLogger()
+
     device = set_device(args)
-    print("using %s" % device)
+    logger.info("using %s" % device)
     llp_data, transform_train, num_classes, model, test_loader = set_data_and_model(args)
     model = model.to(device)
     total_epochs = args.total_epochs
     optimizer, scheduler = set_optimizer(args, model, total_epochs)
     if args.algorithm == "llpfc":
         dataset_class = set_dataset_class(args)
-        llpfc(llp_data, transform_train, scheduler, model, optimizer, test_loader, dataset_class, device, args)
+        llpfc(llp_data, transform_train, scheduler, model, optimizer, test_loader, dataset_class, device, args, logger)
     elif args.algorithm == "kl":
         dataset_class = set_dataset_class(args)
         training_data, bag2indices, bag2size, bag2prop = llp_data
@@ -187,9 +194,10 @@ def main(args):
                                                    shuffle=True)
         alpha = 1.0
         consistency = None
-        kl(model, optimizer, train_loader, alpha, consistency, scheduler, total_epochs, test_loader, device)
+        kl(model, optimizer, train_loader, alpha, consistency, scheduler, total_epochs, test_loader, device, logger)
     if args.save_path is not None:
         torch.save(model.state_dict(), args.save_path)
+    logger.info("training completed")
 
 
 if __name__ == "__main__":

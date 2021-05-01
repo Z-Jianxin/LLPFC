@@ -31,7 +31,7 @@ def validate_model_forward(model, loss_f, val_loader, device):
 	return total_loss
 
 
-def train_model_forward_one_epoch(model, loss_f, optimizer, train_loader, device, epoch, scheduler):
+def train_model_forward_one_epoch(model, loss_f, optimizer, train_loader, device, epoch, scheduler, logger):
 	# train the model one epoch with forward correction
 	# label input of loss_f must be an integer
 	model.train()
@@ -43,7 +43,7 @@ def train_model_forward_one_epoch(model, loss_f, optimizer, train_loader, device
 		loss.backward()
 		optimizer.step()
 		if (i + 1) % 100 == 0:
-			print('Step [{}/{}], Loss: {:.4f}'.format(i + 1, total_step, loss.item()))
+			logger.info('Step [{}/{}], Loss: {:.4f}'.format(i + 1, total_step, loss.item()))
 		if type(scheduler) == torch.optim.lr_scheduler.CosineAnnealingWarmRestarts:
 			scheduler.step(epoch + i / total_step)
 	if type(scheduler) == torch.optim.lr_scheduler.StepLR:
