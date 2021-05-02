@@ -23,12 +23,14 @@ def test_model(model, test_loader, criterion, device):
 	return correct / total, total_loss / total
 
 
-def validate_model_forward(model, loss_f, val_loader, device):
+def validate_model_forward(model, loss_f_val, val_loader, device):
 	model.eval()
 	total_loss = 0
+	total = 0
 	for i, (images, noisy_y, trans_m, weights) in enumerate(val_loader):
-		total_loss += compute_forward_loss_on_minibatch(model, loss_f, images, noisy_y, trans_m, weights, device).item()
-	return total_loss
+		total_loss += compute_forward_loss_on_minibatch(model, loss_f_val, images, noisy_y, trans_m, weights, device).item()
+		total += noisy_y.size(0)
+	return total_loss / total
 
 
 def train_model_forward_one_epoch(model, loss_f, optimizer, train_loader, device, epoch, scheduler, logger):
@@ -43,7 +45,7 @@ def train_model_forward_one_epoch(model, loss_f, optimizer, train_loader, device
 		loss.backward()
 		optimizer.step()
 		if (i + 1) % 100 == 0:
-			logger.info('Step [{}/{}], Loss: {:.4f}'.format(i + 1, total_step, loss.item()))
+			logger.info('				Step [{}/{}], Loss: {:.4f}'.format(i + 1, total_step, loss.item()))
 		if type(scheduler) == torch.optim.lr_scheduler.CosineAnnealingWarmRestarts:
 			scheduler.step(epoch + i / total_step)
 	if type(scheduler) == torch.optim.lr_scheduler.StepLR:

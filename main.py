@@ -57,7 +57,7 @@ def get_args():
     parser.add_argument("-r", "--num_epoch_regroup", nargs="?", type=int, default=20,
                         help="groups will be regenerated every this number of epochs, " 
                              "only effective if the algorithm is llpfc")
-    parser.add_argument("-v", "--validate", nargs='?', type=int, default=0, choices=[0,1],
+    parser.add_argument("-v", "--validate", nargs='?', type=int, default=0, choices=[0, 1],
                         help="if True, then validate on 10%% of the training data set; " 
                              "if False, output testing loss and accuracy will training")
     parser.add_argument("-b", "--train_batch_size", nargs='?', type=int, default=128, help="training batch size")
@@ -178,11 +178,16 @@ def main(args):
     logger = logging.getLogger()
 
     device = set_device(args)
+    logger.info("")
+    logger.info("program starts")
     logger.info("using %s" % device)
     llp_data, transform_train, num_classes, model, test_loader = set_data_and_model(args)
     model = model.to(device)
     total_epochs = args.total_epochs
     optimizer, scheduler = set_optimizer(args, model, total_epochs)
+
+    logger.info("method: %s" % args.algorithm)
+    logger.info("using dataset: %s, %s" % (args.dataset, args.path_lp))
     if args.algorithm == "llpfc":
         dataset_class = set_dataset_class(args)
         llpfc(llp_data, transform_train, scheduler, model, optimizer, test_loader, dataset_class, device, args, logger)
@@ -190,14 +195,34 @@ def main(args):
         dataset_class = set_dataset_class(args)
         training_data, bag2indices, bag2size, bag2prop = llp_data
         llpvat_train_dataset = dataset_class(training_data, bag2indices, bag2prop, transform_train)
-        train_loader = torch.utils.data.DataLoader(dataset=llpvat_train_dataset, batch_size=args.train_batch_size,
-                                                   shuffle=True)
+
+        train_sampler = None
+        val_loader = None
+        if args.validate:
+            VAL_PROP = 0.1
+            num_bags = len(llpvat_train_dataset)
+            split = int(np.floor(VAL_PROP * num_bags))
+            indices = list(range(num_bags))
+            np.random.shuffle(indices)
+            train_indices, val_indices = indices[split:], indices[:split]
+            train_sampler = SubsetRandomSampler(train_indices)
+            valid_sampler = SubsetRandomSampler(val_indices)
+            val_loader = torch.utils.data.DataLoader(dataset=llpvat_train_dataset, sampler=valid_sampler,
+                                                     batch_size=args.train_batch_size)
+        if train_sampler is None:
+            train_loader = torch.utils.data.DataLoader(dataset=llpvat_train_dataset, batch_size=args.train_batch_size,
+                                                       shuffle=True)
+        else:
+            train_loader = torch.utils.data.DataLoader(dataset=llpvat_train_dataset, batch_size=args.train_batch_size,
+                                                       sampler=train_sampler)
         alpha = 1.0
         consistency = None
-        kl(model, optimizer, train_loader, alpha, consistency, scheduler, total_epochs, test_loader, device, logger)
+        kl(model, optimizer, train_loader, alpha, consistency, scheduler, total_epochs, val_loader, test_loader, device,
+           logger)
     if args.save_path is not None:
         torch.save(model.state_dict(), args.save_path)
     logger.info("training completed")
+    logger.info("")
 
 
 if __name__ == "__main__":
