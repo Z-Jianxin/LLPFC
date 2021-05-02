@@ -17,7 +17,7 @@ def compute_kl_loss_on_bagbatch(model, images, props, device, epsilon=1e-8):
     return loss
 
 
-def validate_model_llpvat(model, val_loader, device):
+def validate_model_kl(model, val_loader, device):
     model.eval()
     total_loss = 0
     total = 0
@@ -27,16 +27,11 @@ def validate_model_llpvat(model, val_loader, device):
     return total_loss/total
 
 
-def VATLoss():
-    # ToDo: implement this
-    return 0
-
-
-def llpvat_train_by_bag(model, optimizer, train_loader, epoch, alpha, use_vat, device, scheduler, logger):
+def kl_train_by_bag(model, optimizer, train_loader, epoch, device, scheduler, logger):
     model.train()
     total_step = len(train_loader)
     for i, (images, props) in enumerate(train_loader):
-        loss = alpha * compute_kl_loss_on_bagbatch(model, images, props, device) + VATLoss()
+        loss = compute_kl_loss_on_bagbatch(model, images, props, device)
         # Backward pass
         optimizer.zero_grad()
         loss.backward()
@@ -48,4 +43,4 @@ def llpvat_train_by_bag(model, optimizer, train_loader, epoch, alpha, use_vat, d
     if type(scheduler) == torch.optim.lr_scheduler.StepLR:
         scheduler.step()
     elif type(scheduler) == torch.optim.lr_scheduler.ReduceLROnPlateau:
-        scheduler.step(validate_model_llpvat(model, train_loader, device))
+        scheduler.step(validate_model_kl(model, train_loader, device))

@@ -12,9 +12,9 @@ from torch.utils.data.sampler import SubsetRandomSampler
 from models.NIN import NIN
 from models.WideRes import wide_resnet_d_w
 from llpfclib.utils import FORWARD_CORRECT_MNIST, FORWARD_CORRECT_CIFAR10
-from llpvatlib.utils import LLPVAT_CIFAR10
+from kllib.utils import KL_CIFAR10
 from llpfc import llpfc
-from llpvat import kl
+from kl import kl
 
 import logging
 
@@ -167,7 +167,7 @@ def set_dataset_class(args):
     if args.algorithm == "llpfc" and args.dataset == "cifar10":
         return FORWARD_CORRECT_CIFAR10
     elif args.algorithm == "kl" and args.dataset == "cifar10":
-        return LLPVAT_CIFAR10
+        return KL_CIFAR10
     raise InvalidArguments("Unknown llp algorithm: ", args.algorithm)
 
 
@@ -194,31 +194,28 @@ def main(args):
     elif args.algorithm == "kl":
         dataset_class = set_dataset_class(args)
         training_data, bag2indices, bag2size, bag2prop = llp_data
-        llpvat_train_dataset = dataset_class(training_data, bag2indices, bag2prop, transform_train)
+        kl_train_dataset = dataset_class(training_data, bag2indices, bag2prop, transform_train)
 
         train_sampler = None
         val_loader = None
         if args.validate:
             VAL_PROP = 0.1
-            num_bags = len(llpvat_train_dataset)
+            num_bags = len(kl_train_dataset)
             split = int(np.floor(VAL_PROP * num_bags))
             indices = list(range(num_bags))
             np.random.shuffle(indices)
             train_indices, val_indices = indices[split:], indices[:split]
             train_sampler = SubsetRandomSampler(train_indices)
             valid_sampler = SubsetRandomSampler(val_indices)
-            val_loader = torch.utils.data.DataLoader(dataset=llpvat_train_dataset, sampler=valid_sampler,
+            val_loader = torch.utils.data.DataLoader(dataset=kl_train_dataset, sampler=valid_sampler,
                                                      batch_size=args.train_batch_size)
         if train_sampler is None:
-            train_loader = torch.utils.data.DataLoader(dataset=llpvat_train_dataset, batch_size=args.train_batch_size,
+            train_loader = torch.utils.data.DataLoader(dataset=kl_train_dataset, batch_size=args.train_batch_size,
                                                        shuffle=True)
         else:
-            train_loader = torch.utils.data.DataLoader(dataset=llpvat_train_dataset, batch_size=args.train_batch_size,
+            train_loader = torch.utils.data.DataLoader(dataset=kl_train_dataset, batch_size=args.train_batch_size,
                                                        sampler=train_sampler)
-        alpha = 1.0
-        consistency = None
-        kl(model, optimizer, train_loader, alpha, consistency, scheduler, total_epochs, val_loader, test_loader, device,
-           logger)
+        kl(model, optimizer, train_loader, scheduler, total_epochs, val_loader, test_loader, device, logger)
     if args.save_path is not None:
         torch.save(model.state_dict(), args.save_path)
     logger.info("training completed")

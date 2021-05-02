@@ -2,7 +2,7 @@ from PIL import Image
 import torch
 
 
-class LLPVAT_CIFAR10(torch.utils.data.Dataset):
+class KL_CIFAR10(torch.utils.data.Dataset):
     def __init__(self, data, bag2indices, bag2prop, transform):
         self.data = data
         self.bag2indices = bag2indices
