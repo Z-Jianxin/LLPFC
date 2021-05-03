@@ -68,13 +68,18 @@ def get_args():
                         help="device to train network; if it's check, use cuda whenever it's available")
     parser.add_argument("-w", "--weights", nargs='?', choices=["uniform", "ch_vol"], default="uniform",
                         help="set the weights for each group in llpfc")
-    parser.add_argument("-sc", "--scheduler", nargs='?', choices=["scheduler", "ReduceLROnPlateau", "CAWR"],
-                        default="scheduler", help="set the scheduler of training lr")
+    parser.add_argument("-sc", "--scheduler", nargs='?', choices=["drop", "ReduceLROnPlateau", "CAWR"],
+                        default="drop", help="set the scheduler of training lr")
+    parser.add_argument("-ms", "--milestones", nargs='+', type=int, default=[],
+                        help="number of epochs to drop lr if --scheduler is set to be 'drop'")
+    parser.add_argument("-ga", "--gamma", nargs='?', type=float, default=0.1,
+                        help="drop the learning rate by this factor if --scheduler is set to be 'drop'")
     parser.add_argument("-T0", "--T_0", nargs='?', type=int, default=10, help="parameter of the CAWR scheduler")
     parser.add_argument("-Tm", "--T_mult", nargs='?', type=int, default=1, help="parameter of the CAWR scheduler")
     parser.add_argument("--seed", nargs='?', type=int, help="seed for all RNG")
     parser.add_argument("-fr", "--full_reproducibility", nargs='?', type=int, default=0, choices=[0, 1],
-                        help="choose to disable all nondeterministic algorithms, may at the cost of performance")
+                        help="choose to disable all nondeterministic algorithms, may at the cost of performance, "
+                        " decrypted from now")
     return parser.parse_args()
 
 
@@ -139,21 +144,23 @@ def set_optimizer(args, model, total_epochs):
         optimizer = optim.Adamax(model.parameters(), lr=args.lr, betas=(0.9, 0.999), eps=1e-08,
                                  weight_decay=args.weight_decay)
     elif args.optimizer == "Adagrad":
-        optimizer = optim.Adagrad(model.parameters())
+        optimizer = optim.Adagrad(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     elif args.optimizer == "LBFGS":
         optimizer = optim.LBFGS(model.parameters(), lr=args.lr)  # ToDo: implement the closure function and test
     elif args.optimizer == "nesterov":
-        optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum, nesterov=True)
+        optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum,  weight_decay=args.weight_decay,
+                              nesterov=True)
     elif args.optimizer == "SGD":
-        optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum, nesterov=False)
+        optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay,
+                              nesterov=False)
     elif args.optimizer == "AdamW":
         optimizer = optim.AdamW(model.parameters(), lr=args.lr, betas=(0.9, 0.999), eps=1e-08,
                                 weight_decay=args.weight_decay, amsgrad=bool(args.amsgrad))
     else:
         raise InvalidArguments("Unknown selection of optimizer: ", args.optimizer)
 
-    if args.scheduler == "scheduler":
-        scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=total_epochs//2, gamma=0.1)
+    if args.scheduler == "drop":
+        scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=args.milestones, gamma=args.gamma)
     elif args.scheduler == "ReduceLROnPlateau":
         scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, verbose=True)
     elif args.scheduler == "CAWR":
