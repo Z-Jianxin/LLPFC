@@ -1,3 +1,4 @@
+import sys
 import argparse
 import pickle
 import random  # set the random seed for torchvision
@@ -185,16 +186,14 @@ def main(args):
     logger = logging.getLogger()
 
     device = set_device(args)
-    logger.info("")
+    logger.info("\n\n")
     logger.info("program starts")
-    logger.info("using %s" % device)
+    logger.info("running arguments %s" % sys.argv)
     llp_data, transform_train, num_classes, model, test_loader = set_data_and_model(args)
     model = model.to(device)
     total_epochs = args.total_epochs
     optimizer, scheduler = set_optimizer(args, model, total_epochs)
 
-    logger.info("method: %s" % args.algorithm)
-    logger.info("using dataset: %s, %s" % (args.dataset, args.path_lp))
     if args.algorithm == "llpfc":
         dataset_class = set_dataset_class(args)
         llpfc(llp_data, transform_train, scheduler, model, optimizer, test_loader, dataset_class, device, args, logger)
