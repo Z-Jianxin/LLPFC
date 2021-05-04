@@ -40,7 +40,7 @@ def kl_train_by_bag(model, optimizer, train_loader, epoch, device, scheduler, lo
             logger.info('               Step [{}/{}], Loss: {:.4f}'.format(i + 1, total_step, loss.item()))
         if type(scheduler) == torch.optim.lr_scheduler.CosineAnnealingWarmRestarts:
             scheduler.step(epoch + i / total_step)
-    if type(scheduler) == torch.optim.lr_scheduler.StepLR:
+    if type(scheduler) == torch.optim.lr_scheduler.MultiStepLR:
         scheduler.step()
     elif type(scheduler) == torch.optim.lr_scheduler.ReduceLROnPlateau:
         scheduler.step(validate_model_kl(model, train_loader, device))
