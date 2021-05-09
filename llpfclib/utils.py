@@ -1,7 +1,7 @@
 import torch
 from PIL import Image
 from torch.utils.data import Sampler
-from random import shuffle
+import numpy as np
 
 
 def truncate_data_group(x, y, instance2group):
@@ -37,7 +37,7 @@ class FORWARD_CORRECT_MNIST(torch.utils.data.Dataset):
 		return img, int(y_), torch.tensor(gamma_m, dtype=None)
 
 
-class FORWARD_CORRECT_CIFAR10(torch.utils.data.Dataset):
+class LLPFC_DATASET_BASE(torch.utils.data.Dataset):
 	def __init__(self, data, noisy_y, group2transition, group2weights, instance2group, transform):
 		self.data, self.noisy_y, self.instance2group = truncate_data_group(data, noisy_y, instance2group)
 		self.group2transition = group2transition
@@ -47,11 +47,24 @@ class FORWARD_CORRECT_CIFAR10(torch.utils.data.Dataset):
 	def __len__(self):
 		return len(self.data)
 
+
+class FORWARD_CORRECT_CIFAR10(LLPFC_DATASET_BASE):
 	def __getitem__(self, index):
 		img, y_ = self.data[index], self.noisy_y[index]
 		trans_m = self.group2transition[self.instance2group[index]]
 		weight = self.group2weights[self.instance2group[index]]
 		img = Image.fromarray(img)
+		if self.transform is not None:
+			img = self.transform(img)
+		return img, int(y_), torch.tensor(trans_m, dtype=None), weight
+
+
+class FORWARD_CORRECT_SVHN(LLPFC_DATASET_BASE):
+	def __getitem__(self, index):
+		img, y_ = self.data[index], self.noisy_y[index]
+		img = Image.fromarray(np.transpose(img, (1, 2, 0)))
+		trans_m = self.group2transition[self.instance2group[index]]
+		weight = self.group2weights[self.instance2group[index]]
 		if self.transform is not None:
 			img = self.transform(img)
 		return img, int(y_), torch.tensor(trans_m, dtype=None), weight

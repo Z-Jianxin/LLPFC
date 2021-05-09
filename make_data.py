@@ -14,7 +14,7 @@ class InvalidArguments(Exception):
 def get_args():
     parser = argparse.ArgumentParser(description="Partition data into bags for LLP")
     # required:
-    parser.add_argument("-d", "--dataset", nargs='?', choices=["cifar10"], required=True,
+    parser.add_argument("-d", "--dataset", nargs='?', choices=["cifar10", "svhn"], required=True,
                         help="name of the dataset, the program uses torchvision.datasets")  # ToDo: add more data sets later
     parser.add_argument("-c", "--num_classes", nargs='?', type=int, required=True, metavar="10",
                         help="number of classes")
@@ -42,6 +42,10 @@ def get_args():
 def main(args):
     if args.dataset == "cifar10":
         train_dataset = torchvision.datasets.CIFAR10(root=args.data_folder_labeled, train=True, download=True)
+        labels = train_dataset.targets
+    elif args.dataset == "svhn":
+        train_dataset = torchvision.datasets.SVHN(root=args.data_folder_labeled, split="train", download=True)
+        labels = train_dataset.labels
     else:
         raise InvalidArguments("Unknown dataset name: ", args.dataset)
 
@@ -54,8 +58,7 @@ def main(args):
         fail_counter = 0
         while flag:
             try:
-                bag2indices, bag2size, bag2prop = make_bags_dirichlet(train_dataset.targets,
-                                                                      num_classes=args.num_classes,
+                bag2indices, bag2size, bag2prop = make_bags_dirichlet(labels, num_classes=args.num_classes,
                                                                       bag_size=args.bag_size, num_bags=args.num_bags,
                                                                       alpha=alpha)
                 flag = 0
