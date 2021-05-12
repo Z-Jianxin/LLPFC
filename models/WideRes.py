@@ -100,10 +100,13 @@ class WideBasic(nn.Module):
 
 
 class WideResNet(nn.Module):
-    def __init__(self, depth, widen_factor, dropout_rate, num_classes):
+    def __init__(self, depth, widen_factor, dropout_rate, num_classes, in_channel, image_size):
         super(WideResNet, self).__init__()
         self.in_planes = 16
-
+        if image_size == 32:  # CIFAR10, SVHN
+            self.pool_size = 8
+        elif image_size == 28:  # EMNIST
+            self.pool_size = 7
         assert ((depth - 4) % 6 == 0), 'Wide-resnet depth should be 6n+4'
         n = (depth - 4) // 6
         k = widen_factor
@@ -111,7 +114,7 @@ class WideResNet(nn.Module):
         print('| Wide-Resnet %dx%d' % (depth, k))
         nStages = [16, 16 * k, 32 * k, 64 * k]
 
-        self.conv1 = conv3x3(3, nStages[0])
+        self.conv1 = conv3x3(in_channel, nStages[0])
         self.layer1 = self._wide_layer(WideBasic,
                                        nStages[1],
                                        n,
@@ -146,7 +149,7 @@ class WideResNet(nn.Module):
         out = self.layer2(out)
         out = self.layer3(out)
         out = F.relu(self.bn1(out))
-        out = F.avg_pool2d(out, 8)
+        out = F.avg_pool2d(out, self.pool_size)
         out = out.view(out.size(0), -1)
         out = self.linear(out)
 

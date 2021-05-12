@@ -14,7 +14,7 @@ class InvalidArguments(Exception):
 def get_args():
     parser = argparse.ArgumentParser(description="Partition data into bags for LLP")
     # required:
-    parser.add_argument("-d", "--dataset", nargs='?', choices=["cifar10", "svhn"], required=True,
+    parser.add_argument("-d", "--dataset", nargs='?', choices=["cifar10", "svhn", "emnist_letters"], required=True,
                         help="name of the dataset, the program uses torchvision.datasets")  # ToDo: add more data sets later
     parser.add_argument("-c", "--num_classes", nargs='?', type=int, required=True, metavar="10",
                         help="number of classes")
@@ -46,6 +46,10 @@ def main(args):
     elif args.dataset == "svhn":
         train_dataset = torchvision.datasets.SVHN(root=args.data_folder_labeled, split="train", download=True)
         labels = train_dataset.labels
+    elif args.dataset == "emnist_letters":
+        train_dataset = torchvision.datasets.EMNIST(root=args.data_folder_labeled, split="letters", train=True,
+                                                    download=True)
+        labels = train_dataset.targets - 1  # the labels range originally from 1 to 26
     else:
         raise InvalidArguments("Unknown dataset name: ", args.dataset)
 
@@ -65,15 +69,19 @@ def main(args):
             except InsufficientDataPoints:
                 flag = 1
                 fail_counter += 1
-                if fail_counter >= 10:
-                    raise InsufficientDataPoints("THE DATA GENERATION PROCESS FAILS FOR 10 TIMES CONSECUTIVELY. "
-                                                 "PLEASE CHECK ARGUMENTS OF --alpha, --bag_size, --num_bags")
+                if fail_counter >= 100:
+                    raise InsufficientDataPoints("THE DATA GENERATION PROCESS FAILS FOR 100 TIMES CONSECUTIVELY. "
+                                                 "PLEASE CHECK ARGUMENTS OF --alpha %s, --bag_size %d, --num_bags %d"
+                                                 % (args.alpha, args.bag_size, args.num_bags))
                 continue
     elif args.method == "uniform":
         bag2indices, bag2size, bag2prop = make_bags_uniform(train_dataset.targets, args.num_classes, args.bag_size,
                                                             args.num_bags)
     else:
         raise InvalidArguments("Unknown method to generate bags: ", args.method)
+
+    print("%d of bags generated, each bag has size %d, the random seed is %d, data is saved as %s" %
+          (len(bag2indices.keys()), len(bag2indices[0]), args.seed, args.data_save_name))
 
     training_data, bag2indices = truncate_data(train_dataset.data, bag2indices)
     to_save = [training_data, bag2indices, bag2size, bag2prop]

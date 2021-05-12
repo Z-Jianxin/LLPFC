@@ -18,25 +18,6 @@ def truncate_data_group(x, y, instance2group):
 	return x_truncated, y_truncated, instance2group_new
 
 
-class FORWARD_CORRECT_MNIST(torch.utils.data.Dataset):
-	def __init__(self, data, noisy_y, group2gamma, instance2group, transform):
-		self.data = data
-		self.noisy_y = noisy_y
-		self.group2gamma = group2gamma
-		self.instance2group = instance2group
-		self.transform = transform
-
-	def __len__(self):
-		return len(self.data)
-
-	def __getitem__(self, index):
-		img, y_, gamma_m = self.data[index], self.noisy_y[index], self.group2gamma[self.instance2group[index]]
-		img = Image.fromarray(img, mode='L')
-		if self.transform is not None:
-			img = self.transform(img)
-		return img, int(y_), torch.tensor(gamma_m, dtype=None)
-
-
 class LLPFC_DATASET_BASE(torch.utils.data.Dataset):
 	def __init__(self, data, noisy_y, group2transition, group2weights, instance2group, transform):
 		self.data, self.noisy_y, self.instance2group = truncate_data_group(data, noisy_y, instance2group)
@@ -65,6 +46,17 @@ class FORWARD_CORRECT_SVHN(LLPFC_DATASET_BASE):
 		img = Image.fromarray(np.transpose(img, (1, 2, 0)))
 		trans_m = self.group2transition[self.instance2group[index]]
 		weight = self.group2weights[self.instance2group[index]]
+		if self.transform is not None:
+			img = self.transform(img)
+		return img, int(y_), torch.tensor(trans_m, dtype=None), weight
+
+
+class FORWARD_CORRECT_MNIST(LLPFC_DATASET_BASE): # this should work for both EMNIST and MNIST
+	def __getitem__(self, index):
+		img, y_ = self.data[index], self.noisy_y[index]
+		trans_m = self.group2transition[self.instance2group[index]]
+		weight = self.group2weights[self.instance2group[index]]
+		img = Image.fromarray(img.numpy(), mode='L')
 		if self.transform is not None:
 			img = self.transform(img)
 		return img, int(y_), torch.tensor(trans_m, dtype=None), weight
