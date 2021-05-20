@@ -4,7 +4,7 @@ import torch.nn as nn
 class LLPGAN_DIS(nn.Module):
 	# use the same discriminator as LLP-GAN paper
 	def __init__(self, num_class, image_size, in_channel=3):
-		super(LPPGAN_DIS, self).__init__()
+		super(LLPGAN_DIS, self).__init__()
 		self.conv_layers = nn.Sequential(
 			nn.Dropout(p=0.2, ),
 			nn.Conv2d(in_channel, 64, 3, padding=1, stride=1),

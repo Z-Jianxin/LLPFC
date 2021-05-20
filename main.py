@@ -12,6 +12,7 @@ from torch.utils.data.sampler import SubsetRandomSampler
 
 from models.NIN import NIN
 from models.WideRes import wide_resnet_d_w
+from models.ResNet import resnet18
 from llpfclib.utils import FORWARD_CORRECT_MNIST, FORWARD_CORRECT_CIFAR10, FORWARD_CORRECT_SVHN
 from kllib.utils import KL_CIFAR10, KL_SVHN, KL_EMNIST
 from llpfc import llpfc
@@ -39,7 +40,7 @@ def get_args():
     # optional:
     parser.add_argument("-a", "--algorithm", nargs='?', choices=["llpfc", "kl"], default="llpfc",
                         help="choose a training algorithm")  # ToDo: add more after implementing competitors
-    parser.add_argument("-n", "--network", nargs='?', choices=["wide_resnet_d_w", "nin"],
+    parser.add_argument("-n", "--network", nargs='?', choices=["wide_resnet_d_w", "nin", "ResNet18"],
                         default="wide_resnet_d_w", help="the neural network model")  # ToDo: include more networks
     parser.add_argument("-wrnd", "--WideResNet_depth", nargs='?', type=int, default=28)
     parser.add_argument("-wrnw", "--WideResNet_width", nargs='?', type=int, default=2)
@@ -166,6 +167,8 @@ def set_data_and_model(args):
                                 num_classes=num_classes, in_channel=in_channel, image_size=image_size)
     elif args.network == "nin":
         model = NIN(num_classes=num_classes, image_size=image_size, in_channel=in_channel)
+    elif args.network == "ResNet18":
+        model = resnet18(num_classes, in_channel)
     else:
         raise InvalidArguments("Unknown selection of network: ", args.network)
     return llp_data, transform_train, num_classes, model, test_loader

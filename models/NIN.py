@@ -1,3 +1,5 @@
+# code in this file is modified from https://github.com/yangqiongyongyu/Network-In-Network-Pytorch/blob/master/models/nin.py
+# hyperparameters selected based on https://worksheets.codalab.org/worksheets/0x7b8f6fbc6b5c49c18ac7ca94aafaa1a7
 import torch.nn as nn
 import math
 
