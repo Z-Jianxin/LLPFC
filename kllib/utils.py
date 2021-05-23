@@ -45,9 +45,15 @@ class KL_SVHN(KL_DATASET_BASE):
 
 
 class KL_EMNIST(KL_DATASET_BASE):
+    def __init__(self, data, bag2indices, bag2prop, transform):
+        super(KL_EMNIST, self).__init__(data, bag2indices, bag2prop, transform)
+        img = self.transform(Image.fromarray(self.data[0].numpy(), mode='L'))
+        self.new_h = img.shape[1]
+        self.new_w = img.shape[2]  # need this for resized emnist
+
     def __getitem__(self, bag_index):
         indices = self.bag2indices[bag_index]
-        images = torch.zeros((len(indices), 1, self.data[0].shape[0], self.data[0].shape[1],), dtype=torch.float32)
+        images = torch.zeros((len(indices), 1, self.new_h, self.new_w,), dtype=torch.float32)
         for i in range(len(indices)):
             idx = indices[i]
             img = self.data[idx]

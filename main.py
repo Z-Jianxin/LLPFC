@@ -13,6 +13,8 @@ from torch.utils.data.sampler import SubsetRandomSampler
 from models.NIN import NIN
 from models.WideRes import wide_resnet_d_w
 from models.ResNet import resnet18
+from models.vgg import vgg19_bn, vgg16_bn
+from models.densenet import densenet121
 from llpfclib.utils import FORWARD_CORRECT_MNIST, FORWARD_CORRECT_CIFAR10, FORWARD_CORRECT_SVHN
 from kllib.utils import KL_CIFAR10, KL_SVHN, KL_EMNIST
 from llpfc import llpfc
@@ -40,7 +42,8 @@ def get_args():
     # optional:
     parser.add_argument("-a", "--algorithm", nargs='?', choices=["llpfc", "kl"], default="llpfc",
                         help="choose a training algorithm")  # ToDo: add more after implementing competitors
-    parser.add_argument("-n", "--network", nargs='?', choices=["wide_resnet_d_w", "nin", "ResNet18"],
+    parser.add_argument("-n", "--network", nargs='?', choices=["wide_resnet_d_w", "nin", "ResNet18", "vgg19_bn",
+                                                               "vgg16_bn", "densenet121"],
                         default="wide_resnet_d_w", help="the neural network model")  # ToDo: include more networks
     parser.add_argument("-wrnd", "--WideResNet_depth", nargs='?', type=int, default=28)
     parser.add_argument("-wrnw", "--WideResNet_width", nargs='?', type=int, default=2)
@@ -142,6 +145,8 @@ def set_data_and_model(args):
         image_size = 32
         in_channel = 3
     elif args.dataset == "emnist_letters":
+        image_size = 28
+        in_channel = 1
         transform_train = transforms.Compose([
             transforms.RandomCrop(28, padding=4),
             transforms.RandomHorizontalFlip(),
@@ -152,11 +157,23 @@ def set_data_and_model(args):
             transforms.ToTensor(),
             transforms.Normalize((0.1736, ), (0.3317, )),  # mean-std of emnist
         ])
+        if (args.network == "densenet121") or (len(args.network) >=3 and args.network[:3] == "vgg"):
+            transform_train = transforms.Compose([
+                transforms.Resize(32),  # resize the image for dense net as it has too many pool layers
+                transforms.RandomCrop(32, padding=4),
+                transforms.RandomHorizontalFlip(),
+                transforms.ToTensor(),
+                transforms.Normalize((0.1736,), (0.3317,)),  # mean-std of emnist
+            ])
+            transform_test = transforms.Compose([
+                transforms.Resize(32),
+                transforms.ToTensor(),
+                transforms.Normalize((0.1736,), (0.3317,)),  # mean-std of emnist
+            ])
+            image_size = 32
         test_dataset = torchvision.datasets.EMNIST(root=args.data_folder_labeled, split="letters", train=False,
                                                    transform=transform_test, download=True)
         test_dataset.targets = test_dataset.targets - 1  # the labels range originally from 1 to 26
-        image_size = 28
-        in_channel = 1
     else:
         raise InvalidArguments("Unknown dataset name: ", args.dataset)
     test_loader = torch.utils.data.DataLoader(dataset=test_dataset, batch_size=args.test_batch_size, shuffle=False)
@@ -169,6 +186,12 @@ def set_data_and_model(args):
         model = NIN(num_classes=num_classes, image_size=image_size, in_channel=in_channel)
     elif args.network == "ResNet18":
         model = resnet18(num_classes, in_channel)
+    elif args.network == "vgg19_bn":
+        model = vgg19_bn(num_classes, in_channel)
+    elif args.network == "vgg16_bn":
+        model = vgg16_bn(num_classes, in_channel)
+    elif args.network == "densenet121":
+        model = densenet121(num_classes, in_channel, memory_efficient=False)
     else:
         raise InvalidArguments("Unknown selection of network: ", args.network)
     return llp_data, transform_train, num_classes, model, test_loader
