@@ -19,6 +19,7 @@ from llpfclib.utils import FORWARD_CORRECT_MNIST, FORWARD_CORRECT_CIFAR10, FORWA
 from kllib.utils import KL_CIFAR10, KL_SVHN, KL_EMNIST
 from llpfc import llpfc
 from kl import kl
+from llpvat import llpvat
 
 import logging
 
@@ -40,7 +41,7 @@ def get_args():
     parser.add_argument("-log", "--logging_filename", nargs='?', required=True, help="path to save the log file")
 
     # optional:
-    parser.add_argument("-a", "--algorithm", nargs='?', choices=["llpfc", "kl"], default="llpfc",
+    parser.add_argument("-a", "--algorithm", nargs='?', choices=["llpfc", "kl", "llpvat"], default="llpfc",
                         help="choose a training algorithm")  # ToDo: add more after implementing competitors
     parser.add_argument("-n", "--network", nargs='?', choices=["wide_resnet_d_w", "nin", "ResNet18", "vgg19_bn",
                                                                "vgg16_bn", "densenet121"],
@@ -235,11 +236,11 @@ def set_dataset_class(args):
         return FORWARD_CORRECT_SVHN
     elif args.algorithm == "llpfc" and args.dataset == "emnist_letters":
         return FORWARD_CORRECT_MNIST
-    elif args.algorithm == "kl" and args.dataset == "cifar10":
+    elif (args.algorithm == "kl" or args.algorithm == "llpvat") and args.dataset == "cifar10":
         return KL_CIFAR10
-    elif args.algorithm == "kl" and args.dataset == "svhn":
+    elif (args.algorithm == "kl" or args.algorithm == "llpvat") and args.dataset == "svhn":
         return KL_SVHN
-    elif args.algorithm == "kl" and args.dataset == "emnist_letters":
+    elif (args.algorithm == "kl" or args.algorithm == "llpvat") and args.dataset == "emnist_letters":
         return KL_EMNIST
     raise InvalidArguments("Unknown llp algorithm: ", args.algorithm)
 
@@ -287,6 +288,11 @@ def main(args):
             train_loader = torch.utils.data.DataLoader(dataset=kl_train_dataset, batch_size=args.train_batch_size,
                                                        sampler=train_sampler)
         kl(model, optimizer, train_loader, scheduler, total_epochs, val_loader, test_loader, device, logger)
+    elif args.algorithm == "llpvat":
+        dataset_class = set_dataset_class(args)
+        training_data, bag2indices, bag2size, bag2prop = llp_data
+        kl_train_dataset = dataset_class(training_data, bag2indices, bag2prop, transform_train)
+        llpvat(kl_train_dataset, scheduler, model, optimizer, test_loader, device, args, logger)
     if args.save_path is not None:
         torch.save(model.state_dict(), args.save_path)
     logger.info("training completed")
