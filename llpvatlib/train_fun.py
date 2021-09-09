@@ -22,7 +22,7 @@ def get_rampup_weight(weight, iteration, rampup):
 
 def llp_loss_f(model, images, props, vat_loss_f, iteration, device):
     prop_loss = compute_kl_loss_on_bagbatch(model, images, props, device)
-    alpha = get_rampup_weight(0.05, iteration, -1)
+    alpha = get_rampup_weight(0.05, iteration, -1)  # hard-coded based on tsai and lin's implementation
     vat_loss = vat_loss_f(model,
                           torch.reshape(images, (-1, images.shape[-3], images.shape[-2], images.shape[-1])).to(device))
     return prop_loss + alpha * vat_loss
