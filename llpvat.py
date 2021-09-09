@@ -12,7 +12,7 @@ def loss_f_test(x, y, device, epsilon=1e-8):
 
 def llpvat(kl_train_dataset, scheduler, model, optimizer, test_loader, device, args, logger):
     train_loader = torch.utils.data.DataLoader(dataset=kl_train_dataset, batch_size=args.train_batch_size, shuffle=True)
-    vat_loss_f = VATLoss(xi=1e-6, eps=6.0, ip=1).to(device)
+    vat_loss_f = VATLoss(xi=args.vat_xi, eps=args.vat_eps, ip=args.vat_ip).to(device)
     for epoch in range(args.total_epochs):
         logger.info(f"Epoch-{epoch}")
         logger.info(f"      lr: {optimizer.param_groups[0]['lr']}")
