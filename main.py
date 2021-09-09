@@ -34,25 +34,10 @@ def main(args):
         training_data, bag2indices, bag2size, bag2prop = llp_data
         kl_train_dataset = dataset_class(training_data, bag2indices, bag2prop, transform_train)
 
-        train_sampler = None
+        train_loader = torch.utils.data.DataLoader(dataset=kl_train_dataset,
+                                                   batch_size=args.train_batch_size,
+                                                   shuffle=True)
         val_loader = None
-        if args.validate:
-            VAL_PROP = 0.1
-            num_bags = len(kl_train_dataset)
-            split = int(np.floor(VAL_PROP * num_bags))
-            indices = list(range(num_bags))
-            np.random.shuffle(indices)
-            train_indices, val_indices = indices[split:], indices[:split]
-            train_sampler = SubsetRandomSampler(train_indices)
-            valid_sampler = SubsetRandomSampler(val_indices)
-            val_loader = torch.utils.data.DataLoader(dataset=kl_train_dataset, sampler=valid_sampler,
-                                                     batch_size=args.train_batch_size)
-        if train_sampler is None:
-            train_loader = torch.utils.data.DataLoader(dataset=kl_train_dataset, batch_size=args.train_batch_size,
-                                                       shuffle=True)
-        else:
-            train_loader = torch.utils.data.DataLoader(dataset=kl_train_dataset, batch_size=args.train_batch_size,
-                                                       sampler=train_sampler)
         kl(model, optimizer, train_loader, scheduler, total_epochs, val_loader, test_loader, device, logger)
     elif args.algorithm == "llpvat":
         dataset_class = set_dataset_class(args)

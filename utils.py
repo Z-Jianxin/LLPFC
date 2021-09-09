@@ -123,7 +123,7 @@ def get_args():
     parser.add_argument("-sc",
                         "--scheduler",
                         nargs='?',
-                        choices=["drop", "ReduceLROnPlateau", "CAWR"],
+                        choices=["drop", "CAWR"],
                         default="drop",
                         help="set the scheduler of training lr")
     parser.add_argument("-ms",
@@ -307,8 +307,6 @@ def set_optimizer(args, model, total_epochs):
 
     if args.scheduler == "drop":
         scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=args.milestones, gamma=args.gamma)
-    elif args.scheduler == "ReduceLROnPlateau":
-        scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, verbose=True)
     elif args.scheduler == "CAWR":
         scheduler = optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=args.T_0, T_mult=args.T_mult)
     else:
