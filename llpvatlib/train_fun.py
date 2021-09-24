@@ -25,20 +25,24 @@ def llp_loss_f(model, images, props, vat_loss_f, iteration, device):
     alpha = get_rampup_weight(0.05, iteration, -1)  # hard-coded based on tsai and lin's implementation
     vat_loss = vat_loss_f(model,
                           torch.reshape(images, (-1, images.shape[-3], images.shape[-2], images.shape[-1])).to(device))
-    return prop_loss + alpha * vat_loss
+    return prop_loss, alpha, vat_loss
 
 
 def llpvat_train_by_bag(model, optimizer, train_loader, vat_loss_f, epoch, device, scheduler, logger):
     model.train()
     total_step = len(train_loader)
     for i, (images, props) in enumerate(train_loader):
-        loss = llp_loss_f(model, images, props, vat_loss_f, i, device)
+        prop_loss, alpha, vat_loss = llp_loss_f(model, images, props, vat_loss_f, i, device)
+        loss = prop_loss + alpha * vat_loss
         # Backward pass
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
         if (i + 1) % 100 == 0:
             logger.info('               Step [{}/{}], Loss: {:.4f}'.format(i + 1, total_step, loss.item()))
+            logger.info('                             VAT Loss: {:.4f}'.format(vat_loss.item()))
+            logger.info('                             KL Loss: {:.4f}'.format(prop_loss.item()))
+            logger.info('                             alpha = {:.4f}'.format(alpha))
         if type(scheduler) == torch.optim.lr_scheduler.CosineAnnealingWarmRestarts:
             scheduler.step(epoch + i / total_step)
     if type(scheduler) == torch.optim.lr_scheduler.MultiStepLR:
