@@ -3,71 +3,116 @@ import random
 from scipy.spatial import ConvexHull
 from scipy.special import factorial
 from numpy.linalg import matrix_rank
+from scipy.optimize import minimize, Bounds, LinearConstraint
 
 
 class InvalidChoiceOfWeights(Exception):
     pass
 
 
-def make_groups_forward(num_classes, bag2indices, bag2size, bag2prop, weights, logger):
-    bag_ids = list(bag2indices.keys())
+class InvalidChoiceOfNoisyPrior(Exception):
+    pass
+
+
+def approx_noisy_prior(gamma_m, clean_prior):
+    def ls_error(x, A, b):
+        return 0.5 * np.sum((np.matmul(A, x) - b) ** 2)
+
+    def grad(x, A, b):
+        return np.matmul(np.matmul(np.transpose(A), A), x) - np.matmul(np.transpose(A), b)
+
+    def hess(x, A, b):
+        return np.matmul(np.transpose(A), A)
+
+    x0 = np.random.rand(clean_prior.shape[0])
+    x0 /= np.sum(x0)
+
+    res = minimize(ls_error,
+                   x0,
+                   args=(np.transpose(gamma_m), clean_prior),
+                   method='trust-constr',
+                   jac=grad,
+                   hess=hess,
+                   bounds=Bounds(np.zeros(x0.shape), np.ones(x0.shape)),
+                   constraints=LinearConstraint(np.ones(x0.shape), np.ones(1), np.ones(1)),
+                   )
+    return res.x
+
+
+def make_a_group(num_classes, clean_prior, bag_ids, bag2prop, noisy_prior_choice, logger):
+    bags_list = random.sample(bag_ids, num_classes)
+    gamma_m = np.zeros((num_classes, num_classes))
+    for row_idx in range(num_classes):
+        gamma_m[row_idx, :] = bag2prop[bags_list[row_idx]]
+    if noisy_prior_choice == 'approx':
+        noisy_prior_approx = approx_noisy_prior(np.transpose(gamma_m), clean_prior)
+    elif noisy_prior_choice == 'uniform':
+        noisy_prior_approx = np.ones((num_classes,)) / num_classes
+    else:
+        raise InvalidChoiceOfNoisyPrior("Unknown choice of noisy prior: %s" % noisy_prior_choice)
+    assert np.all(noisy_prior_approx >= 0)
+    assert (np.sum(noisy_prior_approx) - 1) < 1e-4
+    clean_prior_approx = np.matmul(np.transpose(gamma_m), noisy_prior_approx)
+
+    transition_m = np.zeros((num_classes, num_classes))
+    for i in range(num_classes):
+        for j in range(num_classes):
+            transition_m[i, j] = gamma_m[i, j] * noisy_prior_approx[i] / clean_prior_approx[j]  # clean_prior can't be 0 in this case
+
+    if matrix_rank(transition_m) != num_classes:
+        logger.warning("singular transition matrix")
+    if np.any(noisy_prior_approx < 0):
+        logger.warning("negative prior of noisy labels")
+    return bags_list, noisy_prior_approx, transition_m
+
+
+def make_groups_forward(num_classes, bag2indices, bag2size, bag2prop, noisy_prior_choice, weights, logger):
+    bag_ids = set(bag2indices.keys())
     num_groups = len(bag_ids) // num_classes
     assert num_groups > 0
-    random.shuffle(bag_ids)
-    group2bag = {i: bag_ids[i * num_classes:(i + 1) * num_classes] for i in range(num_groups)}
-    group2bag[-1] = bag_ids[num_groups * num_classes:]
-    groups = list(group2bag.keys())
 
-    group2transition = dict()
-    group2gamma = dict()
-    for group_id in groups:
-        if group_id == -1:
-            continue
-        clean_prior = np.zeros((num_classes, ))
-        noisy_prior = np.zeros((num_classes,))
-        gamma_m = np.zeros((num_classes, num_classes))
-        bags = group2bag[group_id]
-        for row_idx in range(num_classes):
-            gamma_m[row_idx, :] = bag2prop[bags[row_idx]]
-            noisy_prior[row_idx] = bag2size[bags[row_idx]]
-            clean_prior += bag2prop[bags[row_idx]] * bag2size[bags[row_idx]]
-        clean_prior /= clean_prior.sum()
-        noisy_prior /= noisy_prior.sum()
-        group2transition[group_id] = np.zeros((num_classes, num_classes))
-        for i in range(num_classes):
-            for j in range(num_classes):
-                if clean_prior[j] != 0:
-                    group2transition[group_id][i, j] = gamma_m[i, j] * noisy_prior[i] / clean_prior[j]
-                else:
-                    group2transition[group_id][i, j] = 0
-        if matrix_rank(group2transition[group_id]) != num_classes:  # todo: change the way sample bags and fix singular transition matrices
-            logger.warning("singular transition matrix")
-        group2gamma[group_id] = gamma_m
+    clean_prior = np.zeros((num_classes, ))
+    for bag_id in bag2size.keys():
+        clean_prior += bag2prop[bag_id] * bag2size[bag_id]
+    clean_prior /= np.sum(clean_prior)
 
-    instance2group = {instance_id: group_id for group_id in groups for bag_id in group2bag[group_id] for instance_id in
-                      bag2indices[bag_id]}
+    group2bag = {}
+    group2noisyp = {}
+    group2transition = {}
+    group_id = 0
+    groups = []
+    while len(bag_ids) >= num_classes:
+        bags_list, noisy_prior, transition_m = make_a_group(num_classes,
+                                                            clean_prior,
+                                                            bag_ids,
+                                                            bag2prop,
+                                                            noisy_prior_choice,
+                                                            logger)
+        bag_ids = bag_ids - set(bags_list)
+        group2bag[group_id], group2noisyp[group_id], group2transition[group_id] = bags_list, noisy_prior, transition_m
+        groups.append(group_id)
+        group_id += 1
+    group2bag[-1] = list(bag_ids)  # bags that are not in a group
+    groups.append(-1)
+
+    instance2group = {instance_id: group_id for group_id in groups for bag_id in group2bag[group_id] for
+                      instance_id in bag2indices[bag_id]}
+
     # calculate the weights of groups
-    group2weights = {}
-    if weights == "ch_vol":
-        weights_sum = 0
-        for group_id, trans_m in group2transition.items():
-            simplex = np.vstack((np.transpose(trans_m), np.zeros(num_classes)))
-            group2weights[group_id] = ConvexHull(simplex).volume
-            weights_sum += group2weights[group_id]
-        for group_id, trans_m in group2transition.items():
-            group2weights[group_id] /= weights_sum
-    elif weights == "uniform":
+    if weights == 'uniform':
         group2weights = {group_id: 1.0 for group_id, trans_m in group2transition.items()}
     else:
-        raise InvalidChoiceOfWeights("unknown way to determine weights %s, use either ch_vol or uniform" % weights)
+        raise InvalidChoiceOfWeights("Unknown way to determine weights %s, use either ch_vol or uniform" % weights)
 
     # set the noisy labels
-    noisy_y = -np.ones((sum([len(instances) for instances in bag2indices.values()]), ))
+    noisy_y = -np.ones((sum([len(instances) for instances in bag2indices.values()]),))
+    instance2weight = np.zeros((sum([len(instances) for instances in bag2indices.values()]),))
     for group_id in groups:
         if group_id == -1:
             continue
         for noisy_class, bag_id in enumerate(group2bag[group_id]):
             for instance_id in bag2indices[bag_id]:
                 noisy_y[instance_id] = noisy_class
+                instance2weight[instance_id] = group2noisyp[group_id][noisy_class] * group2weights[group_id]
 
-    return instance2group, group2transition, group2weights, noisy_y
+    return instance2group, group2transition, instance2weight, noisy_y

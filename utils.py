@@ -16,6 +16,7 @@ import torch.optim as optim
 import torchvision
 import torchvision.transforms as transforms
 
+
 class InvalidArguments(Exception):
     pass
 
@@ -92,6 +93,14 @@ def get_args():
                         default=20,
                         help="groups will be regenerated every this number of epochs, " 
                              "only effective if the algorithm is llpfc")
+    parser.add_argument("-np",
+                        "--noisy_prior_choice",
+                        nargs="?",
+                        type=str,
+                        default="approx",
+                        choices=["approx", "uniform"],
+                        help="the heuristics to estimate the noisy prior for each group, "
+                             "approx solves the constrained optimization and uniform assigns uniform noisy priors")
     parser.add_argument("-v",
                         "--validate",
                         nargs='?',
@@ -99,7 +108,7 @@ def get_args():
                         default=0,
                         choices=[0, 1],
                         help="if True, then validate on 10%% of the training data set; " 
-                             "if False, output testing loss and accuracy will training"
+                             "if False, output testing loss and accuracy while training"
                         )
     parser.add_argument("-b", "--train_batch_size", nargs='?', type=int, default=128, help="training batch size")
     parser.add_argument("-t", "--test_batch_size", nargs="?", type=int, default=256, help="test batch size")

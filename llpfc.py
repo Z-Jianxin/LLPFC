@@ -9,7 +9,7 @@ from llpfclib.make_groups import make_groups_forward
 from llpfclib.train_fun import train_model_forward_one_epoch, test_model, validate_model_forward
 
 
-def loss_f(x, y, weights, device, epsilon=1e-8):  # todo: Allow more choices of loss functions
+def loss_f(x, y, weights, device, epsilon=1e-8):
     assert torch.all(simplex.check(x))
     x = torch.clamp(x, epsilon, 1 - epsilon)
     unweighted = nn.functional.nll_loss(torch.log(x), y, reduction='none')
@@ -17,7 +17,7 @@ def loss_f(x, y, weights, device, epsilon=1e-8):  # todo: Allow more choices of 
     return (unweighted * weights).sum()
 
 
-def loss_f_val(x, y, weights, device, epsilon=1e-8):  # todo: Allow more choices of loss functions
+def loss_f_val(x, y, weights, device, epsilon=1e-8):
     assert torch.all(simplex.check(x))
     x = torch.clamp(x, epsilon, 1 - epsilon)
     unweighted = nn.functional.nll_loss(torch.log(x), y, reduction='none')
@@ -38,9 +38,18 @@ def llpfc(llp_data, transform_train, scheduler, model, optimizer, test_loader, d
 
     for epoch in range(args.total_epochs):
         if epoch % args.num_epoch_regroup == 0:
-            instance2group, group2transition, group2weights, noisy_y = \
-                    make_groups_forward(args.num_classes, bag2indices, bag2size, bag2prop, args.weights, logger)
-            fc_train_dataset = dataset_class(training_data, noisy_y, group2transition, group2weights, instance2group,
+            instance2group, group2transition, instance2weight, noisy_y = make_groups_forward(args.num_classes,
+                                                                                             bag2indices,
+                                                                                             bag2size,
+                                                                                             bag2prop,
+                                                                                             args.noisy_prior_choice,
+                                                                                             args.weights,
+                                                                                             logger)
+            fc_train_dataset = dataset_class(training_data,
+                                             noisy_y,
+                                             group2transition,
+                                             instance2weight,
+                                             instance2group,
                                              transform_train)
             if (llp_valid_loader is None) and args.validate:  # always use the first group assigment to validate
                 VAL_PROP = 0.1
