@@ -41,26 +41,14 @@ def compute_dis_loss(dis, true_images, fake_images, props, device, lambd=1, epsi
     lower_kl_loss = -torch.sum(-props * avg_log_prop, dim=-1).mean() * lambd
 
     # compute the true/fake binary loss
-    print("true outputs", flush=True)
-    print(true_outputs, flush=True)
     true_outputs_cat = torch.cat((true_outputs, torch.zeros(true_outputs.shape[0], 1).to(device)), dim=1)
-    print("true outputs cat", flush=True)
-    print(true_outputs_cat, flush=True)
     true_prob = 1 - nn.functional.softmax(true_outputs_cat, dim=1)[:, -1]
-    print("true_prob", flush=True)
-    print(true_prob, flush=True)
     clamped_true_prob = torch.clamp(true_prob, epsilon, 1 - epsilon)
     log_true_prob = torch.log(clamped_true_prob)
     avg_log_true_prop = -torch.mean(log_true_prob)
 
-    print("fake outputs", flush=True)
-    print(fake_outputs, flush=True)
     fake_outputs_cat = torch.cat((fake_outputs, torch.zeros(fake_outputs.shape[0], 1).to(device)), dim=1)
-    print("fake outputs cat", flush=True)
-    print(fake_outputs_cat, flush=True)
     fake_prob = nn.functional.softmax(fake_outputs_cat, dim=1)[:, -1]
-    print("fake_prob", flush=True)
-    print(fake_prob, flush=True)
     clamped_fake_prob = torch.clamp(fake_prob, epsilon, 1 - epsilon)
     log_fake_prob = torch.log(clamped_fake_prob)
     avg_log_fake_prop = -torch.mean(log_fake_prob)
