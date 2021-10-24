@@ -8,7 +8,8 @@ from torch.utils.data.sampler import SubsetRandomSampler
 from llpfc import llpfc
 from kl import kl
 from llpvat import llpvat
-from utils import set_optimizer, set_device, set_reproducibility, set_data_and_model, set_dataset_class, get_args
+from llpgan import llpgan
+from utils import set_optimizer, set_device, set_reproducibility, set_data_and_model, set_dataset_class, get_args, set_generator
 
 
 def main(args):
@@ -44,6 +45,14 @@ def main(args):
         training_data, bag2indices, bag2size, bag2prop = llp_data
         kl_train_dataset = dataset_class(training_data, bag2indices, bag2prop, transform_train)
         llpvat(kl_train_dataset, scheduler, model, optimizer, test_loader, device, args, logger)
+    elif args.algorithm == "llpgan":
+        dataset_class = set_dataset_class(args)
+        training_data, bag2indices, bag2size, bag2prop = llp_data
+        kl_train_dataset = dataset_class(training_data, bag2indices, bag2prop, transform_train)
+        gen = set_generator(args)
+        gen = gen.to(device)
+        gen_opt, gen_sch = set_optimizer(args, gen, total_epochs)
+        llpgan(kl_train_dataset, model, gen, optimizer, gen_opt, scheduler, gen_sch, test_loader, device, args, logger)
     if args.save_path is not None:
         torch.save(model.state_dict(), args.save_path)
     logger.info("training completed")

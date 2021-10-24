@@ -100,7 +100,7 @@ class WideBasic(nn.Module):
 
 
 class WideResNet(nn.Module):
-    def __init__(self, depth, widen_factor, dropout_rate, num_classes, in_channel, image_size):
+    def __init__(self, depth, widen_factor, dropout_rate, num_classes, in_channel, image_size, return_features=False):
         super(WideResNet, self).__init__()
         self.in_planes = 16
         if image_size == 32:  # CIFAR10, SVHN
@@ -133,6 +133,8 @@ class WideResNet(nn.Module):
         self.bn1 = nn.BatchNorm2d(nStages[3], momentum=0.9)
         self.linear = nn.Linear(nStages[3], num_classes)
 
+        self.return_features = return_features
+
     def _wide_layer(self, block, planes, num_blocks, dropout_rate, stride):
         strides = [stride] + [1] * (num_blocks - 1)
         layers = []
@@ -150,7 +152,8 @@ class WideResNet(nn.Module):
         out = self.layer3(out)
         out = F.relu(self.bn1(out))
         out = F.avg_pool2d(out, self.pool_size)
-        out = out.view(out.size(0), -1)
-        out = self.linear(out)
-
+        features = out.view(out.size(0), -1)
+        out = self.linear(features)
+        if self.return_features:
+            return out, features
         return out

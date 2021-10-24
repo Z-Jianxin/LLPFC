@@ -9,6 +9,7 @@ from models.WideRes import wide_resnet_d_w
 from models.ResNet import resnet18
 from models.vgg import vgg19_bn, vgg16_bn
 from models.densenet import densenet121
+from models.LLPGAN_GEN import LLPGAN_GEN_MNIST, LLPGAN_GEN_COLOR
 from llpfclib.utils import FORWARD_CORRECT_MNIST, FORWARD_CORRECT_CIFAR10, FORWARD_CORRECT_SVHN
 from kllib.utils import KL_CIFAR10, KL_SVHN, KL_EMNIST
 
@@ -47,7 +48,7 @@ def get_args():
     parser.add_argument("-a",
                         "--algorithm",
                         nargs='?',
-                        choices=["llpfc", "kl", "llpvat"],
+                        choices=["llpfc", "kl", "llpvat", "llpgan"],
                         default="llpfc",
                         help="choose a training algorithm")
     parser.add_argument("-n",
@@ -182,6 +183,12 @@ def get_args():
                         type=float,
                         default=1,
                         help="parameter for vat loss, effective only algorithm=llpvat")
+    parser.add_argument("-nd",
+                        "--noise_dim",
+                        nargs='?',
+                        type=int,
+                        default=500,
+                        help="parameter for llpgan, the input dimension of the generator")
     return parser.parse_args()
 
 
@@ -276,19 +283,35 @@ def set_data_and_model(args):
     test_loader = torch.utils.data.DataLoader(dataset=test_dataset, batch_size=args.test_batch_size, shuffle=False)
 
     num_classes = args.num_classes
+
+    return_features = False
+    if args.algorithm == "llpgan":
+        return_features = True
+
     if args.network == "wide_resnet_d_w":
-        model = wide_resnet_d_w(d=args.WideResNet_depth, w=args.WideResNet_width, dropout_rate=args.drop_rate,
-                                num_classes=num_classes, in_channel=in_channel, image_size=image_size)
+        model = wide_resnet_d_w(d=args.WideResNet_depth,
+                                w=args.WideResNet_width,
+                                dropout_rate=args.drop_rate,
+                                num_classes=num_classes,
+                                in_channel=in_channel,
+                                image_size=image_size,
+                                return_features=return_features
+                                )
     elif args.network == "nin":
-        model = NIN(num_classes=num_classes, image_size=image_size, in_channel=in_channel)
+        model = NIN(num_classes=num_classes,
+                    image_size=image_size,
+                    in_channel=in_channel,
+                    )
+        if args.algorithm == "llpgan":
+            raise InvalidArguments("NIN is not compatible with LLPGAN as it has no fully connected layer")
     elif args.network == "ResNet18":
-        model = resnet18(num_classes, in_channel)
+        model = resnet18(num_classes, in_channel, return_features=return_features)
     elif args.network == "vgg19_bn":
-        model = vgg19_bn(num_classes, in_channel)
+        model = vgg19_bn(num_classes, in_channel, return_features=return_features)
     elif args.network == "vgg16_bn":
-        model = vgg16_bn(num_classes, in_channel)
+        model = vgg16_bn(num_classes, in_channel, return_features=return_features)
     elif args.network == "densenet121":
-        model = densenet121(num_classes, in_channel, memory_efficient=False)
+        model = densenet121(num_classes, in_channel, memory_efficient=False, return_features=return_features)
     else:
         raise InvalidArguments("Unknown selection of network: ", args.network)
     return llp_data, transform_train, num_classes, model, test_loader
@@ -324,16 +347,30 @@ def set_optimizer(args, model, total_epochs):
 
 
 def set_dataset_class(args):
+    competitors = ["kl", "llpvat", "llpgan"]
     if args.algorithm == "llpfc" and args.dataset == "cifar10":
         return FORWARD_CORRECT_CIFAR10
     elif args.algorithm == "llpfc" and args.dataset == "svhn":
         return FORWARD_CORRECT_SVHN
     elif args.algorithm == "llpfc" and args.dataset == "emnist_letters":
         return FORWARD_CORRECT_MNIST
-    elif (args.algorithm == "kl" or args.algorithm == "llpvat") and args.dataset == "cifar10":
+    elif (args.algorithm in competitors) and args.dataset == "cifar10":
         return KL_CIFAR10
-    elif (args.algorithm == "kl" or args.algorithm == "llpvat") and args.dataset == "svhn":
+    elif (args.algorithm in competitors) and args.dataset == "svhn":
         return KL_SVHN
-    elif (args.algorithm == "kl" or args.algorithm == "llpvat") and args.dataset == "emnist_letters":
+    elif (args.algorithm in competitors) and args.dataset == "emnist_letters":
         return KL_EMNIST
-    raise InvalidArguments("Unknown llp algorithm: ", args.algorithm)
+    raise InvalidArguments("Unknown combination of llp algorithm and dataset"
+                           ": (%s, %s)" % (args.algorithm, args.dataset))
+
+
+def set_generator(args):
+    # return a tuple of (generator, optimizer of generator, )
+    if args.dataset in ["cifar10", "svhn"]:
+        return LLPGAN_GEN_COLOR(args.noise_dim)
+    elif args.dataset == "emnist_letters":
+        if (args.network == "densenet121") or (len(args.network) >= 3 and args.network[:3] == "vgg"):
+            return LLPGAN_GEN_MNIST(args.noise_dim, 32, 32)
+        return LLPGAN_GEN_MNIST(args.noise_dim, 28, 28)
+    else:
+        raise InvalidArguments("Unknown choice of dataset: %s" % args.dataset)

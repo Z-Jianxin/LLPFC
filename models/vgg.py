@@ -6,12 +6,12 @@ from typing import Union, List, Dict, Any, cast
 
 class VGG(nn.Module):
 
-    def __init__(
-        self,
-        features: nn.Module,
-        num_classes: int = 1000,
-        init_weights: bool = True
-    ) -> None:
+    def __init__(self,
+                 features: nn.Module,
+                 num_classes: int = 1000,
+                 init_weights: bool = True,
+                 return_features: bool = False
+                 ) -> None:
         super(VGG, self).__init__()
         self.features = features
         self.avgpool = nn.AdaptiveAvgPool2d((7, 7))
@@ -26,13 +26,16 @@ class VGG(nn.Module):
         )
         if init_weights:
             self._initialize_weights()
+        self.return_features = return_features
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor):
         x = self.features(x)
         x = self.avgpool(x)
-        x = torch.flatten(x, 1)
-        x = self.classifier(x)
-        return x
+        features = torch.flatten(x, 1)
+        out = self.classifier(features)
+        if self.return_features:
+            return out, features
+        return out
 
     def _initialize_weights(self) -> None:
         for m in self.modules():

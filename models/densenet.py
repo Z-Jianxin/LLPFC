@@ -10,14 +10,13 @@ from typing import Any, List, Tuple
 
 
 class _DenseLayer(nn.Module):
-    def __init__(
-        self,
-        num_input_features: int,
-        growth_rate: int,
-        bn_size: int,
-        drop_rate: float,
-        memory_efficient: bool = False
-    ) -> None:
+    def __init__(self,
+                 num_input_features: int,
+                 growth_rate: int,
+                 bn_size: int,
+                 drop_rate: float,
+                 memory_efficient: bool = False
+                 ) -> None:
         super(_DenseLayer, self).__init__()
         self.norm1: nn.BatchNorm2d
         self.add_module('norm1', nn.BatchNorm2d(num_input_features))
@@ -144,9 +143,17 @@ class DenseNet(nn.Module):
           but slower. Default: *False*. See `"paper" <https://arxiv.org/pdf/1707.06990.pdf>`_.
     """
 
-    def __init__(self, num_classes: int, in_channels: int, growth_rate: int = 32,
-                 block_config: Tuple[int, int, int, int] = (6, 12, 24, 16), num_init_features: int = 64,
-                 bn_size: int = 4, drop_rate: float = 0, memory_efficient: bool = False) -> None:
+    def __init__(self,
+                 num_classes: int,
+                 in_channels: int,
+                 growth_rate: int = 32,
+                 block_config: Tuple[int, int, int, int] = (6, 12, 24, 16),
+                 num_init_features: int = 64,
+                 bn_size: int = 4,
+                 drop_rate: float = 0,
+                 memory_efficient: bool = False,
+                 return_features: bool = False,
+                 ) -> None:
         super(DenseNet, self).__init__()
 
         # First convolution
@@ -192,6 +199,7 @@ class DenseNet(nn.Module):
                 nn.init.constant_(m.bias, 0)
             elif isinstance(m, nn.Linear):
                 nn.init.constant_(m.bias, 0)
+        self.return_features = return_features
 
     def forward(self, x: Tensor) -> Tensor:
         features = self.features(x)
@@ -199,6 +207,8 @@ class DenseNet(nn.Module):
         out = F.adaptive_avg_pool2d(out, (1, 1))
         out = torch.flatten(out, 1)
         out = self.classifier(out)
+        if self.return_features:
+            return out, features
         return out
 
 

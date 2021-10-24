@@ -3,7 +3,7 @@ import torch.nn as nn
 
 class LLPGAN_DIS(nn.Module):
 	# use the same discriminator as LLP-GAN paper
-	def __init__(self, num_class, image_size, in_channel=3):
+	def __init__(self, num_class, image_size, in_channel=3, return_features=False):
 		super(LLPGAN_DIS, self).__init__()
 		self.conv_layers = nn.Sequential(
 			nn.Dropout(p=0.2, ),
@@ -34,9 +34,12 @@ class LLPGAN_DIS(nn.Module):
 			pool_size = (round(round(image_size[0]/2.0)/2.0), round(round(image_size[1]/2.0)/2.0))
 		self.pool_layer = nn.AvgPool2d(pool_size, stride=pool_size, )
 		self.fc_layer = nn.Linear(64, num_class, bias=True)
+		self.return_features = return_features
 
 	def forward(self, x):
-		out = self.conv_layers(x)
-		out = self.pool_layer(out)
-		out = self.fc_layer(out.reshape(-1, 64))
+		x = self.conv_layers(x)
+		features = self.pool_layer(x).reshape(-1, 64)
+		out = self.fc_layer(features)
+		if self.return_features:
+			return out, features
 		return out
