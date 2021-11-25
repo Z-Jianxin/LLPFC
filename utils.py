@@ -99,7 +99,7 @@ def get_args():
                         nargs="?",
                         type=str,
                         default="approx",
-                        choices=["approx", "uniform"],
+                        choices=["approx", "uniform", "merge"],
                         help="the heuristics to estimate the noisy prior for each group, "
                              "approx solves the constrained optimization and uniform assigns uniform noisy priors")
     parser.add_argument("-v",

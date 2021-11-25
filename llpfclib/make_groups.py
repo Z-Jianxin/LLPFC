@@ -66,7 +66,69 @@ def make_a_group(num_classes, clean_prior, bag_ids, bag2prop, noisy_prior_choice
     return bags_list, noisy_prior_approx, transition_m
 
 
+def _pow_normalize(x, t):
+    """
+    returns normalized x**t
+    this function is used to control the probability of bag assignment
+    """
+    exp = x ** t
+    return exp / np.sum(exp, axis=0)
+
+
+def merge_bags(num_classes, bag2indices, bag2size, bag2prop, logger, t=10):
+    assert len(bag2indices.keys()) >= num_classes
+
+    # merge bags in mega-bags
+    # make sure we have at least one bag in each mega-bag
+    bag2mega = {max(bag2prop, key=lambda x: bag2prop[x][c]): c for c in range(num_classes)}
+    for b in bag2prop:
+        if b in bag2mega.keys():
+            continue
+        bag2mega[b] = np.random.choice(np.arange(0, num_classes), p=_pow_normalize(bag2prop[b], t))
+    mega2prop = {}
+    gamma_m = np.zeros((num_classes, num_classes))
+    for c in range(num_classes):
+        prop = np.zeros((num_classes, ))
+        for b in bag2prop.keys():
+            if bag2mega[b] == c:
+                prop += bag2prop[b]
+        prop = prop/np.sum(prop)
+        mega2prop[c] = prop
+        gamma_m[c, :] = prop
+
+    # compute noisy transition matrix
+    clean_prior = np.zeros((num_classes,))
+    for bag_id in bag2size.keys():
+        clean_prior += bag2prop[bag_id] * bag2size[bag_id]
+    clean_prior /= np.sum(clean_prior)
+    noisy_prior = np.matmul(np.linalg.inv(np.transpose(gamma_m)), clean_prior)
+
+    transition_m = np.zeros((num_classes, num_classes))
+    for i in range(num_classes):
+        for j in range(num_classes):
+            transition_m[i, j] = gamma_m[i, j] * noisy_prior[i] / clean_prior[j]  # clean_prior can't be 0 in this case
+    if matrix_rank(transition_m) != num_classes:
+        logger.warning("singular transition matrix")
+    if np.any(noisy_prior < 0):
+        logger.warning("negative prior of noisy labels")
+
+    instance2group = {instance_id: 0 for bag_id in bag2indices.keys() for instance_id in bag2indices[bag_id]}
+    noisy_y = -np.ones((sum([len(instances) for instances in bag2indices.values()]),))
+    instance2weight = np.zeros((sum([len(instances) for instances in bag2indices.values()]),))
+    group2transition = {}
+    for bag_id in bag2indices.keys():
+        for instance_id in bag2indices[bag_id]:
+            noisy_y[instance_id] = bag2mega[bag_id]
+            group2transition[instance_id] = transition_m
+            instance2weight[instance_id] = noisy_prior[bag2mega[bag_id]]
+    assert (noisy_y == -1).sum() == 0
+    return instance2group, group2transition, instance2weight, noisy_y
+
+
 def make_groups_forward(num_classes, bag2indices, bag2size, bag2prop, noisy_prior_choice, weights, logger):
+    if noisy_prior_choice == "merge":
+        return merge_bags(num_classes, bag2indices, bag2size, bag2prop, logger,)
+
     bag_ids = set(bag2indices.keys())
     num_groups = len(bag_ids) // num_classes
     assert num_groups > 0
