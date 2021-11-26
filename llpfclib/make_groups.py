@@ -91,7 +91,7 @@ def merge_bags(num_classes, bag2indices, bag2size, bag2prop, logger, t=10):
         prop = np.zeros((num_classes, ))
         for b in bag2prop.keys():
             if bag2mega[b] == c:
-                prop += bag2prop[b]
+                prop += bag2prop[b] * bag2size[b]
         prop = prop/np.sum(prop)
         mega2prop[c] = prop
         gamma_m[c, :] = prop
@@ -114,13 +114,11 @@ def merge_bags(num_classes, bag2indices, bag2size, bag2prop, logger, t=10):
 
     instance2group = {instance_id: 0 for bag_id in bag2indices.keys() for instance_id in bag2indices[bag_id]}
     noisy_y = -np.ones((sum([len(instances) for instances in bag2indices.values()]),))
-    instance2weight = np.zeros((sum([len(instances) for instances in bag2indices.values()]),))
-    group2transition = {}
+    instance2weight = np.ones((sum([len(instances) for instances in bag2indices.values()]),))
+    group2transition = {0: transition_m}
     for bag_id in bag2indices.keys():
         for instance_id in bag2indices[bag_id]:
             noisy_y[instance_id] = bag2mega[bag_id]
-            group2transition[instance_id] = transition_m
-            instance2weight[instance_id] = noisy_prior[bag2mega[bag_id]]
     assert (noisy_y == -1).sum() == 0
     return instance2group, group2transition, instance2weight, noisy_y
 
@@ -172,9 +170,18 @@ def make_groups_forward(num_classes, bag2indices, bag2size, bag2prop, noisy_prio
     for group_id in groups:
         if group_id == -1:
             continue
+
+        noisy_prior = group2noisyp[group_id]
+        noisy_prop = np.zeros((num_classes, ))
+        for noisy_class, bag_id in enumerate(group2bag[group_id]):
+            noisy_prop[noisy_class] = bag2size[bag_id]
+        noisy_prop /= np.sum(noisy_prop)
+        weights = np.divide(noisy_prior, noisy_prop)
+        weights /= np.sum(weights)
+
         for noisy_class, bag_id in enumerate(group2bag[group_id]):
             for instance_id in bag2indices[bag_id]:
                 noisy_y[instance_id] = noisy_class
-                instance2weight[instance_id] = group2noisyp[group_id][noisy_class] * group2weights[group_id]
+                instance2weight[instance_id] = weights[noisy_class] * group2weights[group_id]
 
     return instance2group, group2transition, instance2weight, noisy_y
