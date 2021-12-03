@@ -80,7 +80,8 @@ def merge_bags(num_classes, bag2indices, bag2size, bag2prop, logger, t=10):
 
     # merge bags in mega-bags
     # make sure we have at least one bag in each mega-bag
-    bag2mega = {max(bag2prop, key=lambda x: bag2prop[x][c]): c for c in range(num_classes)}
+    sampled_anchors = random.sample(bag2prop.keys(), num_classes)
+    bag2mega = {sampled_anchors[c]: c for c in range(num_classes)}
     for b in bag2prop:
         if b in bag2mega.keys():
             continue
