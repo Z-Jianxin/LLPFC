@@ -29,7 +29,17 @@ def loss_f_test(x, y, device, epsilon=1e-8):
     return nn.functional.nll_loss(torch.log(x), y, reduction='sum')
 
 
-def llpfc(llp_data, transform_train, scheduler, model, optimizer, test_loader, dataset_class, device, args, logger):
+def llpfc(llp_data,
+          transform_train,
+          scheduler,
+          model,
+          optimizer,
+          test_loader,
+          dataset_class,
+          device,
+          args,
+          logger,
+          json_data):
     training_data, bag2indices, bag2size, bag2prop = llp_data
     num_regroup = -1
     train_sampler = None
@@ -75,6 +85,7 @@ def llpfc(llp_data, transform_train, scheduler, model, optimizer, test_loader, d
         if test_loader is not None:
             acc, test_error = test_model(model, test_loader, loss_f_test, device)
             logger.info(f"      test_error = {test_error}, accuracy = {100 * acc}%")
+            json_data['epoch_vs_test_accuracy'].append({'epoch': epoch, 'test_acc': acc, 'test_error': test_error})
         if args.validate:
             assert llp_valid_loader is not None
             val_loss = validate_model_forward(model, loss_f_val, llp_valid_loader, device)

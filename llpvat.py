@@ -10,7 +10,7 @@ def loss_f_test(x, y, device, epsilon=1e-8):
     return nn.functional.nll_loss(torch.log(x), y, reduction='sum')
 
 
-def llpvat(kl_train_dataset, scheduler, model, optimizer, test_loader, device, args, logger):
+def llpvat(kl_train_dataset, scheduler, model, optimizer, test_loader, device, args, logger, json_data):
     train_loader = torch.utils.data.DataLoader(dataset=kl_train_dataset, batch_size=args.train_batch_size, shuffle=True)
     vat_loss_f = VATLoss(xi=args.vat_xi, eps=args.vat_eps, ip=args.vat_ip).to(device)
     for epoch in range(args.total_epochs):
@@ -20,3 +20,4 @@ def llpvat(kl_train_dataset, scheduler, model, optimizer, test_loader, device, a
         if test_loader is not None:
             acc, test_error = test_model(model, test_loader, loss_f_test, device)
             logger.info(f"        test_error = {test_error}, accuracy = {100 * acc}%")
+            json_data['epoch_vs_test_accuracy'].append({'epoch': epoch, 'test_acc': acc, 'test_error': test_error})

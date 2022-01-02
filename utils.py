@@ -189,6 +189,12 @@ def get_args():
                         type=int,
                         default=500,
                         help="parameter for llpgan, the input dimension of the generator")
+    parser.add_argument("-js",
+                        "--path_to_json",
+                        nargs='?',
+                        type=str,
+                        default=None,
+                        help="will write the training results to this path if provided, write nothing if is none")
     return parser.parse_args()
 
 

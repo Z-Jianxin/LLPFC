@@ -1,3 +1,4 @@
+import json
 import sys
 import numpy as np  # set the random seed for torchvision
 import logging
@@ -22,6 +23,10 @@ def main(args):
     logger.info("\n\n")
     logger.info("program starts")
     logger.info("running arguments %s" % sys.argv)
+    json_data = dict()
+    json_data['args'] = sys.argv
+    json_data['epoch_vs_test_accuracy'] = []
+
     llp_data, transform_train, num_classes, model, test_loader = set_data_and_model(args)
     model = model.to(device)
     total_epochs = args.total_epochs
@@ -29,7 +34,17 @@ def main(args):
 
     if args.algorithm == "llpfc":
         dataset_class = set_dataset_class(args)
-        llpfc(llp_data, transform_train, scheduler, model, optimizer, test_loader, dataset_class, device, args, logger)
+        llpfc(llp_data,
+              transform_train,
+              scheduler,
+              model,
+              optimizer,
+              test_loader,
+              dataset_class,
+              device,
+              args,
+              logger,
+              json_data)
     elif args.algorithm == "kl":
         dataset_class = set_dataset_class(args)
         training_data, bag2indices, bag2size, bag2prop = llp_data
@@ -39,12 +54,12 @@ def main(args):
                                                    batch_size=args.train_batch_size,
                                                    shuffle=True)
         val_loader = None
-        kl(model, optimizer, train_loader, scheduler, total_epochs, val_loader, test_loader, device, logger)
+        kl(model, optimizer, train_loader, scheduler, total_epochs, val_loader, test_loader, device, logger, json_data)
     elif args.algorithm == "llpvat":
         dataset_class = set_dataset_class(args)
         training_data, bag2indices, bag2size, bag2prop = llp_data
         kl_train_dataset = dataset_class(training_data, bag2indices, bag2prop, transform_train)
-        llpvat(kl_train_dataset, scheduler, model, optimizer, test_loader, device, args, logger)
+        llpvat(kl_train_dataset, scheduler, model, optimizer, test_loader, device, args, logger, json_data)
     elif args.algorithm == "llpgan":
         dataset_class = set_dataset_class(args)
         training_data, bag2indices, bag2size, bag2prop = llp_data
@@ -52,9 +67,23 @@ def main(args):
         gen = set_generator(args)
         gen = gen.to(device)
         gen_opt, gen_sch = set_optimizer(args, gen, total_epochs)
-        llpgan(kl_train_dataset, model, gen, optimizer, gen_opt, scheduler, gen_sch, test_loader, device, args, logger)
+        llpgan(kl_train_dataset,
+               model,
+               gen,
+               optimizer,
+               gen_opt,
+               scheduler,
+               gen_sch,
+               test_loader,
+               device,
+               args,
+               logger,
+               json_data)
     if args.save_path is not None:
         torch.save(model.state_dict(), args.save_path)
+    if args.path_to_json is not None:
+        with open(args.path_to_json, 'w') as f:
+            json.dump(json_data, f)
     logger.info("training completed")
     logger.info("")
 

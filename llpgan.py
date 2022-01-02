@@ -8,7 +8,18 @@ def loss_f_test(x, y, device, epsilon=1e-8):
     return nn.functional.nll_loss(torch.log(x), y, reduction='sum')
 
 
-def llpgan(kl_train_dataset, dis, gen, dis_opt, gen_opt, dis_sch, gen_sch, test_loader, device, args, logger):
+def llpgan(kl_train_dataset,
+           dis,
+           gen,
+           dis_opt,
+           gen_opt,
+           dis_sch,
+           gen_sch,
+           test_loader,
+           device,
+           args,
+           logger,
+           json_data):
     train_loader = torch.utils.data.DataLoader(dataset=kl_train_dataset, batch_size=args.train_batch_size, shuffle=True)
     for epoch in range(args.total_epochs):
         logger.info(f"Epoch-{epoch}")
@@ -28,3 +39,4 @@ def llpgan(kl_train_dataset, dis, gen, dis_opt, gen_opt, dis_sch, gen_sch, test_
         if test_loader is not None:
             acc, test_error = test_llpgan(dis, test_loader, loss_f_test, device)
             logger.info(f"        test_error = {test_error}, accuracy = {100 * acc}%")
+            json_data['epoch_vs_test_accuracy'].append({'epoch': epoch, 'test_acc': acc, 'test_error': test_error})
