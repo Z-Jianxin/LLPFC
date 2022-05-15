@@ -1,5 +1,5 @@
 # Learning from Label Proportion by Learning from Label Noise
-0. Please Cite:
+1. Please Cite:
   ```
   @misc{https://doi.org/10.48550/arxiv.2203.02496,
   doi = {10.48550/ARXIV.2203.02496},
@@ -17,10 +17,12 @@
    * activate the new environment: `conda activate LLP`
 3. Generate LLP data:
    * run `python make_data.py -h` to check the usage
-   * Example: ```python make_data.py -d cifar10 -c 10 -s cifar10_paper_BS256_BN160_T0 \
+   * Example: ```
+              python make_data.py -d cifar10 -c 10 -s cifar10_paper_BS256_BN160_T0 \
                     -l ./data/labeled_data/  \
                     -p ./data/llp_data/ \
-                    -m dirichlet -b 256 -n 160 -r 15671628```
+                    -m dirichlet -b 256 -n 160 -r 15671628
+              ```
    * The flag `-m` allows options `dirichlet` and `uniform`. Experiments in the paper use `-m dirichlet`.
 3. Run Experiments:
    * run `python main.py -h` to check the usage
