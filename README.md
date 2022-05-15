@@ -17,7 +17,8 @@
    * activate the new environment: `conda activate LLP`
 3. Generate LLP data:
    * run `python make_data.py -h` to check the usage
-   * Example: ```
+   * Example: 
+   ```
               python make_data.py -d cifar10 -c 10 -s cifar10_paper_BS256_BN160_T0 \
                     -l ./data/labeled_data/  \
                     -p ./data/llp_data/ \
