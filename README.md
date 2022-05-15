@@ -1,6 +1,7 @@
 # Learning from Label Proportion by Learning from Label Noise
 0. Please Cite: \
-  `@misc{https://doi.org/10.48550/arxiv.2203.02496, \
+  ```
+  @misc{https://doi.org/10.48550/arxiv.2203.02496, \
   doi = {10.48550/ARXIV.2203.02496}, \
   url = {https://arxiv.org/abs/2203.02496}, \
   author = {Zhang, Jianxin and Wang, Yutong and Scott, Clayton}, \
@@ -8,7 +9,8 @@
   publisher = {arXiv}, \
   year = {2022}, \
   copyright = {arXiv.org perpetual, non-exclusive license} \
-}`
+}
+```
 2. Dependencies:
    * download and install Anaconda
    * create an environment and install the dependencies: `conda env create -f LLPFC.yml`
