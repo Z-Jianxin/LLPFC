@@ -13,7 +13,7 @@
 ```
 2. Dependencies:
    * download and install Anaconda
-   * create an environment and install the dependencies: `conda env create -f LLPFC.yml`
+   * create an environment and install the dependencies: `conda env create -f LLPFC.yml`. If failed, you may want to install the packages listed in LLPFC.yml manually.
    * activate the new environment: `conda activate LLP`
 3. Generate LLP data:
    * run `python make_data.py -h` to check the usage
